@@ -1,0 +1,108 @@
+#!/usr/bin/env ruby
+
+if File.basename($PROGRAM_NAME) != 'rake'
+  require 'shellwords'
+  puts "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+  exec "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+end
+
+require 'rubygems'
+require 'json'
+require 'yaml'
+require 'open-uri'
+require 'pathname'
+
+S3_BUCKET_CONFIG = YAML.load(File.read(File.expand_path('~/.s3.yml')))
+S3_BUCKET = S3_BUCKET_CONFIG[ENV['BUCKET_TYPE'] || 'downloads-experimental']
+
+$stderr.puts "*** Using bucket s3://#{S3_BUCKET} for creating repositories"
+
+target_dir = Pathname.new('target')
+
+desc 'clean'
+task :clean do
+  rm_rf target_dir
+end
+
+desc 'init'
+task :init do
+  mkdir_p target_dir
+end
+
+def terminate_docker_container(name)
+  sh("docker stop --time=2 '#{name}' > /dev/null 2>&1 || true") # in case the image does not exist
+  sh("docker rm '#{name}' > /dev/null 2>&1 || true") # in case the image does not exist
+end
+
+desc 'create debian repository'
+task :apt do
+  sh("aws s3 sync --exclude='*' --include '*.deb' s3://#{S3_BUCKET} #{target_dir.join('repo')}")
+  mkdir_p 'target/tmp'
+  require 'tmpdir'
+
+  sh('docker pull gocd/aptrepo')
+
+  terminate_docker_container('aptrepo')
+  Dir.mktmpdir(nil, 'target/tmp') do |tmp_dir|
+    tmp_dir = Pathname.new(tmp_dir).expand_path
+    cp_r File.expand_path('~/.gnupg'), tmp_dir
+    sh("docker run --privileged=false --interactive=true --attach stdout --attach stderr --rm --env 'GPG_SIGNING_KEY_ID=8816C449' --env 'SIGNING_USER=#{Process.uid}' --env 'SIGNING_GROUP=#{Process.gid}' --volume #{target_dir.expand_path}/repo:/repo --volume #{tmp_dir}/.gnupg:/root/.gnupg --name 'aptrepo' 'gocd/aptrepo:latest'")
+  end
+
+  sh('gpg --armor --export 8816C449 > target/repo/GOCD-GPG-KEY.asc ')
+
+  at_exit { terminate_docker_container('aptrepo') }
+end
+
+desc 'create yum repository'
+task :yum do
+  sh("aws s3 sync --exclude='*' --include '*.rpm' s3://#{S3_BUCKET} #{target_dir.join('repo')}")
+  mkdir_p 'target/tmp'
+  require 'tmpdir'
+
+  sh('docker pull gocd/yumrepo')
+
+  terminate_docker_container('yumrepo')
+  Dir.mktmpdir(nil, 'target/tmp') do |tmp_dir|
+    tmp_dir = Pathname.new(tmp_dir).expand_path
+    cp_r File.expand_path('~/.gnupg'), tmp_dir
+    sh("docker run --privileged=false --interactive=false --attach stdout --attach stderr --rm --env 'GPG_SIGNING_KEY_ID=8816C449' --env 'SIGNING_USER=#{Process.uid}' --env 'SIGNING_GROUP=#{Process.gid}' --volume #{target_dir.expand_path}/repo:/repo --volume #{tmp_dir}/.gnupg:/root/.gnupg --name 'yumrepo' 'gocd/yumrepo:latest'")
+  end
+
+  sh('gpg --armor --export 8816C449 > target/repo/GOCD-GPG-KEY.asc ')
+
+  at_exit { terminate_docker_container('yumrepo') }
+end
+
+desc "create releases.json file"
+task :releases_json do
+  sh("aws s3 sync --exclude='*' --include '**/metadata.json' s3://#{S3_BUCKET} #{target_dir.join('repo')}")
+
+  json = Dir["#{target_dir.join('repo', '**', '*', 'metadata.json')}"].sort.collect do |f|
+    JSON.parse(File.read(f))
+  end
+
+  open(target_dir.join('repo', 'releases.json'), 'w') do |f|
+    f.puts(JSON.generate(json))
+  end
+end
+
+desc "upload the repository metadata"
+task :upload do
+
+  %w(GOCD-GPG-KEY.asc InRelease Packages Packages.bz2 Packages.gz Release Release.gpg releases.json).each do |f|
+    # low cache ttl
+    sh("aws s3 cp #{target_dir.join('repo', f)} s3://#{S3_BUCKET}/#{f} --cache-control 'max-age=600'")
+  end
+
+  # yum repomd.xml (low cache ttl)
+  sh("aws s3 sync #{target_dir.join('repo', 'repodata')} s3://#{S3_BUCKET}/repodata/ --delete --cache-control 'max-age=600' --exclude '*' --include 'repomd.xml*'")
+
+  # rest of the yum metadata (high cache ttl)
+  sh("aws s3 sync #{target_dir.join('repo', 'repodata')} s3://#{S3_BUCKET}/repodata/ --delete --cache-control 'max-age=31536000'")
+
+  # yum repoview (low cache ttl)
+  sh("aws s3 sync #{target_dir.join('repo', 'repoview')} s3://#{S3_BUCKET}/repoview/ --delete --cache-control 'max-age=600'")
+end
+
+task default: [:clean, :init, :apt, :yum, :releases_json, :upload]

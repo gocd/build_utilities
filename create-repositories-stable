@@ -1,0 +1,4 @@
+#!/bin/bash
+
+export BUCKET_TYPE=downloads-stable
+exec $(dirname $0)/create-repositories "$@"

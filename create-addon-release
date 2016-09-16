@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+
+if File.basename($PROGRAM_NAME) != 'rake'
+  require 'shellwords'
+  puts "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+  exec "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+end
+
+require 'rubygems'
+require 'json'
+require 'open-uri'
+require 'pathname'
+require 'yaml'
+
+S3_BUCKET_CONFIG = YAML.load(File.read(File.expand_path('~/.s3.yml')))
+S3_BUCKET = S3_BUCKET_CONFIG[ENV['BUCKET_TYPE'] || 'addons-experimental']
+
+full_version = ENV['CORRESPONDING_GOCD_VERSION'] || (fail 'CORRESPONDING_GOCD_VERSION not set')
+go_server_url = ENV['GO_SERVER_URL'] || (fail 'GO_SERVER_URL not set')
+go_dependency_locator_go_postgresql_build = ENV['GO_DEPENDENCY_LOCATOR_GO_POSTGRESQL_BUILD'] || (fail 'GO_DEPENDENCY_LOCATOR_GO_POSTGRESQL_BUILD not set')
+credentials = ENV['CREDENTIALS'] || (fail 'CREDENTIALS not set')
+
+target_dir = Pathname.new('target')
+addons_dir = target_dir.join('s3', full_version)
+
+task :clean do
+  rm_rf target_dir
+end
+
+task :init do
+  mkdir_p target_dir
+end
+
+task :fetch_addons do
+  cd 'target' do
+    bc_url = JSON.parse(open("#{go_server_url}/files/#{go_dependency_locator_go_postgresql_build}/business-continuity/business-continuity-addon.json", 'r', http_basic_authentication: credentials.split(':')).read).find_all {|f| f['name'] =~ /go-business.*.jar/ && f['type'] == 'file'}.first['url']
+    pg_url = JSON.parse(open("#{go_server_url}/files/#{go_dependency_locator_go_postgresql_build}/postgresql/postgresql-addon.json", 'r', http_basic_authentication: credentials.split(':')).read).find_all {|f| f['name'] =~ /go-postgresql.*.jar/ && f['type'] == 'file'}.first['url']
+
+    mkdir_p 'addons'
+    cd 'addons' do
+      sh("curl --fail --silent --user #{credentials} #{bc_url} -O")
+      sh("curl --fail --silent --user #{credentials} #{pg_url} -O")
+    end
+  end # cd target
+end
+
+task :prepare_addons_for_upload do
+  rm_rf addons_dir
+  mkdir_p addons_dir
+  Dir['target/addons/*.jar'].each do |addon|
+    cp addon, addons_dir
+  end
+
+  cd addons_dir do
+    sh('md5sum    *.jar > addons-md5.checksum')
+    sh('sha1sum   *.jar > addons-sha1.checksum')
+    sh('sha256sum *.jar > addons-sha256.checksum')
+    sh('sha512sum *.jar > addons-sha512.checksum')
+  end
+end
+
+task :upload do
+  sh("aws s3 sync #{addons_dir} s3://#{S3_BUCKET}/#{full_version} --cache-control 'max-age=31536000'")
+end
+
+task default: [:clean, :init, :fetch_addons, :prepare_addons_for_upload, :upload]

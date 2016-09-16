@@ -1,0 +1,13 @@
+*.zip
+*.bak
+pkg/
+target/*
+pkg_for_upload/*
+.bundle
+.tags*
+all_modifications.log
+contributors.log
+release_notes.markdown
+release_notes.html
+*.swp
+vendor

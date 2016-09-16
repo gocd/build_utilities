@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+
+if File.basename($PROGRAM_NAME) != 'rake'
+  require 'shellwords'
+  puts "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+  exec "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+end
+
+require 'json'
+require 'open-uri'
+require 'yaml'
+
+S3_BUCKET_CONFIG = YAML.load(File.read(File.expand_path('~/.s3.yml')))
+
+S3_EXPERIMENTAL_BUCKET = S3_BUCKET_CONFIG[ENV['S3_EXPERIMENTAL_BUCKET_TYPE'] || 'downloads-experimental']
+S3_STABLE_BUCKET = S3_BUCKET_CONFIG[ENV['S3_STABLE_BUCKET_TYPE'] || 'downloads-stable']
+
+S3_ADDONS_EXPERIMENTAL_BUCKET = S3_BUCKET_CONFIG[ENV['S3_ADDONS_EXPERIMENTAL_BUCKET_TYPE'] || 'addons-experimental']
+S3_ADDONS_STABLE_BUCKET = S3_BUCKET_CONFIG[ENV['S3_ADDONS_STABLE_BUCKET_TYPE'] || 'addons-stable']
+
+S3_UPDATE_CHECK_BUCKET = S3_BUCKET_CONFIG[ENV['UPDATE_CHECK_BUCKET_TYPE'] || 'update-check']
+
+task :default do
+  job_identifier = ENV['INSTALLER_JOB_IDENTIFIER']
+  username = ENV['ARTIFACT_FETCH_USERNAME'] || 'view'
+  password = ENV['ARTIFACT_FETCH_PASSWORD'] || 'password'
+  version_info = JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist/meta/version.json", 'r', http_basic_authentication: [username, password]).read)
+  go_full_version = version_info['go_full_version']
+
+  $stderr.puts "*** Promoting version #{go_full_version} to stable"
+
+  sh("aws s3 sync s3://#{S3_EXPERIMENTAL_BUCKET}/binaries/#{go_full_version} s3://#{S3_STABLE_BUCKET}/binaries/#{go_full_version} --cache-control 'max-age=31536000'")
+  sh("aws s3 sync s3://#{S3_ADDONS_EXPERIMENTAL_BUCKET}/#{go_full_version} s3://#{S3_ADDONS_STABLE_BUCKET}/#{go_full_version} --cache-control 'max-age=31536000'")
+
+  sh("./create-repositories-stable")
+
+  sh("aws s3 cp s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.previous.json --cache-control 'max-age=600'")
+
+  sh("aws s3 cp s3://#{S3_EXPERIMENTAL_BUCKET}/binaries/#{go_full_version}/latest.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.json --cache-control 'max-age=600'")
+  sh("aws s3 cp s3://#{S3_EXPERIMENTAL_BUCKET}/binaries/#{go_full_version}/latest.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest-#{go_full_version}.json --cache-control 'max-age=600'")
+end

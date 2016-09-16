@@ -1,0 +1,83 @@
+#!/usr/bin/env ruby
+
+if File.basename($0) != "rake"
+  require 'shellwords'
+  puts "bundle exec rake -f #{Shellwords.escape($0)} #{Shellwords.shelljoin(ARGV)}"
+  exec "bundle exec rake -f #{Shellwords.escape($0)} #{Shellwords.shelljoin(ARGV)}"
+end
+
+$stdout.sync = true
+$stderr.sync = true
+
+require 'rubygems'
+require 'json'
+require 'uri'
+require 'open3'
+require 'open-uri'
+
+task :clean do
+  rm_rf "target"
+end
+
+task :init do
+  mkdir_p "target"
+end
+
+task :determine_corresponding_gocd_build do
+  raise "GO_ENTERPRISE_DIR not set, it is required to determine the corresponding gocd revision" unless ENV["GO_ENTERPRISE_DIR"]
+  gocd_git_revision = ""
+  go_enterprise_checkout_dir = ENV["GO_ENTERPRISE_DIR"]
+
+  cd go_enterprise_checkout_dir do
+    stdin, stdout, stderr = Open3.popen3("git submodule status core | awk '{print $1}'")
+    error = stderr.read
+    gocd_git_revision = stdout.read.strip if (error.empty?)
+    raise "Could not get gocd git sha corresponding to enterprise #{go_enterprise_checkout_dir}. command failed: #{error}" unless (error.empty?)
+    puts "Core is at revision #{gocd_git_revision}"
+  end
+
+  releases_json_download_url="https://download.go.cd/experimental/releases.json"
+  open(releases_json_download_url) do |f|
+    releases = JSON.parse(f.read)
+    matching_builds = releases.reject { |x| x["git_sha"] != gocd_git_revision }
+    if (!matching_builds.empty?)
+      desired_build = matching_builds.first
+      full_version=desired_build["go_full_version"]
+      File.open("target/gocd_version.txt", 'w') { |file| file.write(full_version) }
+    else
+      raise "Could not find an entry for #{gocd_git_revision} in releases.json, this usually means dist-all for revision #{gocd_git_revision} has not completed."
+    end
+  end
+end
+
+task :update_gocd_compatibility_map do
+  gocd_version = File.read('target/gocd_version.txt')
+  addons=[]
+  Dir.chdir("pkg_for_upload") do
+    addons = Dir.glob("*/go-*.jar").collect {|f| File.basename(f)}
+  end
+  addon_builds_json_file = File.join("..", "gocd_addons_compatibility", "addon_builds.json")
+  existing_data = JSON.parse(File.read(addon_builds_json_file))
+  addons_hash = Hash.new
+  addons.each do |addon|
+    key = addon.match(/go-(.*)-\d+\..*\.jar$/).captures.first
+    addons_hash["#{key}"]=addon
+  end
+
+  info_about_this_build = {
+      "gocd_version" => "#{gocd_version}",
+      "addons" => addons_hash
+  }
+
+  to_be_written = existing_data << info_about_this_build
+
+  File.open(addon_builds_json_file, "w") do |f|
+    f.puts(JSON.pretty_generate(to_be_written))
+  end
+
+  cd "../gocd_addons_compatibility" do
+    sh ("git add .; git commit -m 'updated addons build info for #{addons.join(',')} against Gocd #{gocd_version}'; git push")
+  end
+end
+
+task :determine_version_and_update_map => [:clean, :init, :determine_corresponding_gocd_build, :update_gocd_compatibility_map]

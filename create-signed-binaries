@@ -1,0 +1,382 @@
+#!/usr/bin/env ruby
+
+if File.basename($PROGRAM_NAME) != 'rake'
+  require 'shellwords'
+  puts "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+  exec "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+end
+
+require 'rubygems'
+require 'pathname'
+require 'timeout'
+require 'json'
+require 'open-uri'
+require 'openssl'
+require 'base64'
+require 'yaml'
+require 'retriable'
+
+CONNECTION_CONFIG = YAML.load(File.read(File.expand_path('~/.windows-linux-signing-connection.yml')))
+OSX_HOST = CONNECTION_CONFIG['osx']['host']
+OSX_USER = CONNECTION_CONFIG['osx']['user']
+
+WINDOWS_HOST = CONNECTION_CONFIG['windows']['host']
+WINDOWS_USER = CONNECTION_CONFIG['windows']['user']
+WINDOWS_PASS = CONNECTION_CONFIG['windows']['password']
+
+S3_BUCKET_CONFIG = YAML.load(File.read(File.expand_path('~/.s3.yml')))
+
+S3_BUCKET = S3_BUCKET_CONFIG[ENV['BUCKET_TYPE'] || 'downloads-experimental']
+S3_UPDATE_CHECK_BUCKET = S3_BUCKET_CONFIG[ENV['UPDATE_CHECK_BUCKET_TYPE'] || 'update-check']
+
+job_identifier     = ENV['INSTALLER_JOB_IDENTIFIER'] || (fail 'INSTALLER_JOB_IDENTIFIER not set. Example: distributions-all/331/dist-all/1/all')
+username           = ENV['ARTIFACT_FETCH_USERNAME'] || 'view'
+password           = ENV['ARTIFACT_FETCH_PASSWORD'] || 'password'
+cookies = ENV['COOKIES'] || ''
+extra_curl_args = "--cookie '#{cookies}'" if !cookies.empty?
+
+all_files_in_release = []
+headers = {
+            "Cookie" => cookies,
+            http_basic_authentication: [username, password]
+          }
+all_files_in_release += JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist.json", 'r', headers).read)
+
+module Distro
+  include RakeFileUtils
+  attr_reader :unsigned_base_dir, :signed_base_dir, :unsigned_file_name
+  def initialize(unsigned_base_dir, signed_base_dir, unsigned_file_name)
+    @unsigned_base_dir  = unsigned_base_dir
+    @signed_base_dir    = signed_base_dir
+    @unsigned_file_name = Pathname.new(unsigned_file_name)
+  end
+
+  def signed_files
+    [signed_base_dir.join(unsigned_file_name)]
+  end
+
+  def create_container(docker_image)
+    terminate_docker_container(container_name)
+    sh("docker pull '#{docker_image}'")
+
+    mkdir_p 'target/tmp'
+    require 'tmpdir'
+
+    Dir.mktmpdir(nil, 'target/tmp') do |tmp_dir|
+      tmp_dir = Pathname.new(tmp_dir).expand_path
+      cp_r File.expand_path('~/.gnupg'), tmp_dir
+      sh("docker run --privileged=false --interactive=false --attach stdout --attach stderr --rm --env 'GPG_SIGNING_KEY_ID=8816C449' --env 'SIGNING_USER=#{Process.uid}' --env 'SIGNING_GROUP=#{Process.gid}' --volume #{signed_base_dir.expand_path}:/signed --volume #{unsigned_base_dir.expand_path}:/unsigned --volume #{tmp_dir}/.gnupg:/root/.gnupg --name '#{container_name}' '#{docker_image}'")
+    end
+
+    at_exit { terminate_docker_container(container_name) }
+  end
+
+  def container_name
+    "sign-#{unsigned_file_name}"
+  end
+
+  private
+
+  def terminate_docker_container(name)
+    sh("docker stop --time=2 '#{name}' > /dev/null 2>&1 || true") # in case the image does not exist
+    sh("docker rm '#{name}' > /dev/null 2>&1 || true") # in case the image does not exist
+  end
+end
+
+class MacOSX
+  include Distro
+
+  class << self
+    def source_prefix
+      'osx'
+    end
+  end
+
+  def sign
+    tmp_dir_name = if unsigned_file_name.to_s =~ /go-agent/
+                     'go-agent'
+                   else
+                     'go-server'
+              end
+
+    tmp_dir = "target/tmp/#{tmp_dir_name}"
+
+    rm_rf tmp_dir
+    mkdir_p tmp_dir
+
+    sh("unzip -q #{unsigned_base_dir.join(unsigned_file_name)} -d #{tmp_dir}")
+    sh("rsync -avzP -e 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' --delete #{tmp_dir}/ #{OSX_USER}@#{OSX_HOST}:#{tmp_dir_name}")
+
+    keychain_password_file = ENV['KEYCHAIN_PASSWORD_FILE'] || '${HOME}/Library/Keychains/codesigner.password'
+    sh(%{ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{OSX_USER}@#{OSX_HOST} -- 'security unlock-keychain -p $(cat ~/Library/Keychains/codesigner.password) ~/Library/Keychains/codesigner.keychain && codesign --force --verify --verbose --sign "Developer ID Application: ThoughtWorks (LL62P32G5C)" #{tmp_dir_name}/*.app'}) do |ok, _res|
+      puts 'Locking keychain again'
+      sh("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{OSX_USER}@#{OSX_HOST} -- 'security lock-keychain ~/Library/Keychains/codesigner.keychain'")
+      fail 'There was an error performing code OSX signing' unless ok
+    end
+
+    sh("rsync -avzP -e 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' --delete #{OSX_USER}@#{OSX_HOST}:#{tmp_dir_name}/ #{tmp_dir}")
+
+    sh("cd #{tmp_dir} && zip -r ../../signed/osx/#{unsigned_file_name} .")
+    rm_rf "../unsigned/#{tmp_dir}"
+  end
+end
+
+class Redhat
+  include Distro
+
+  class << self
+    def source_prefix
+      'rpm'
+    end
+  end
+
+  def sign
+    create_container('gocd/rpmsign:latest')
+  end
+end
+
+class Debian
+  include Distro
+
+  class << self
+    def source_prefix
+      'deb'
+    end
+  end
+
+  def sign
+    create_container('gocd/debsign:latest')
+  end
+end
+
+class Windows
+  include Distro
+
+  class << self
+    def source_prefix
+      'win'
+    end
+  end
+
+  def sign
+    require 'rubygems'
+    require 'bundler/setup'
+    require 'winrm'
+    require 'winrm-elevated'
+
+    Retriable.retriable(tries: 5, base_interval: 10, max_interval: 60) do
+      sh("timeout 60 scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{unsigned_base_dir.join(unsigned_file_name)} #{WINDOWS_USER}@#{WINDOWS_HOST}:/to-sign.exe")
+    end
+
+    execute_remote_command('signtool sign /debug /v /t http://timestamp.digicert.com /a C:\to-sign.exe')
+    execute_remote_command('signtool sign /debug /v /tr http://timestamp.digicert.com /a /fd sha256 /td sha256 /as C:\to-sign.exe')
+    execute_remote_command('signtool verify /debug /v /a /pa /hash sha1 C:\to-sign.exe')
+    execute_remote_command('signtool verify /debug /v /a /pa /hash sha256 C:\to-sign.exe')
+
+    Retriable.retriable(tries: 5, base_interval: 10, max_interval: 60) do
+      sh("timeout 60 scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{WINDOWS_USER}@#{WINDOWS_HOST}:/to-sign.exe #{signed_base_dir.join(unsigned_file_name)}")
+    end
+  end
+
+  private
+
+  def execute_remote_command(cmd, exit_code = 0)
+    puts "Executing `#{cmd}` remotely"
+    Retriable.retriable(tries: 5, base_interval: 10, max_interval: 60, timeout: 60) do
+      result = runner.powershell_elevated(cmd, WINDOWS_USER, WINDOWS_PASS)
+      puts result.output.gsub(/\r\n?/, "\n").gsub(/\n\n/, "\n")
+      if result[:exitcode] != exit_code
+        fail "The remote command exited with status #{result[:exitcode]}"
+      end
+    end
+  end
+
+  def runner
+    @runner ||= WinRM::Elevated::Runner.new(winrm)
+  end
+
+  def winrm
+    @winrm ||= WinRM::WinRMWebService.new("http://#{WINDOWS_HOST}:5985/wsman", :plaintext, user: WINDOWS_USER, pass: WINDOWS_PASS, basic_auth_only: true)
+  end
+end
+
+class Generic
+  include Distro
+
+  class << self
+    def source_prefix
+      'zip'
+    end
+  end
+
+  def sign
+    sh("gpg --default-key 8816C449 --armor --detach-sign --sign --output #{signed_base_dir.join(unsigned_file_name)}.asc #{unsigned_base_dir.join(unsigned_file_name)}")
+    cp unsigned_base_dir.join(unsigned_file_name), signed_base_dir.join(unsigned_file_name)
+    sh("gpg --default-key 8816C449 --verify #{signed_base_dir.join(unsigned_file_name)}.asc")
+  end
+end
+
+oses = {
+  osx:     { regex: /go-(server|agent).*\-osx.zip$/,  signer: MacOSX },
+  win:     { regex: /go-(server|agent).*\.exe$/,      signer: Windows },
+  rpm:     { regex: /go-(server|agent).*\.rpm$/,      signer: Redhat },
+  deb:     { regex: /go-(server|agent).*\.deb$/,      signer: Debian },
+  generic: { regex: /go-(server|agent).*[0-9]\.zip$/, signer: Generic },
+}
+
+target_dir        = Pathname.new('target')
+unsigned_base_dir = target_dir.join('unsigned').cleanpath
+signed_base_dir   = target_dir.join('signed').cleanpath
+
+task :clean do
+  rm_rf target_dir
+  fail 'Could not delete target directory' if File.exist?(target_dir)
+end
+
+oses.each do |os, os_description|
+  os_specific_files = all_files_in_release.find_all { |f| f['name'] =~ /#{os_description[:signer].source_prefix}/ && f['type'] == 'folder' }.collect{|f| f['files'] }.flatten
+
+  if os_specific_files.size != 2
+    fail "Was expecting there to be at-least 2 files for #{os}, got #{os_specific_files.count}"
+  end
+
+  unsigned_os_base_dir = unsigned_base_dir.join(os.to_s).cleanpath
+  signed_os_base_dir   = signed_base_dir.join(os.to_s).cleanpath
+
+  directory unsigned_os_base_dir.to_s => :clean
+  directory signed_os_base_dir.to_s   => :clean
+
+  os_specific_files.each do |f|
+    unsigned_file = unsigned_os_base_dir.join(f['name'])
+    signer        = os_description[:signer].new(unsigned_os_base_dir, signed_os_base_dir, f['name'])
+    signed_files  = signer.signed_files
+
+    desc "download file #{f['name']}"
+    file unsigned_file => unsigned_os_base_dir do
+      sh("curl #{extra_curl_args} --location --fail --silent --user #{username}:#{password} #{f['url']} > #{unsigned_file}")
+    end
+
+    signed_files.each do |signed_file|
+      desc "create signed file #{signed_file} for #{f['name']}"
+      file signed_file => [signed_os_base_dir, unsigned_file] do
+        signer.sign
+      end
+    end
+
+    desc "Sign #{os} binaries"
+    task os => signed_files
+  end
+end
+
+task 'metadata' do
+  require 'time'
+  version_info = JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
+
+  release_time = Time.now.utc
+
+  metadata = {
+    go_version:            version_info.delete('go_version'),
+    go_build_number:       version_info.delete('go_build_number'),
+    go_full_version:       version_info.delete('go_full_version'),
+    release_time_readable: release_time.xmlschema,
+    release_time:          release_time.to_i,
+    git_sha:               version_info.delete('git_sha'),
+    pipeline_name:         version_info.delete('pipeline_name'),
+    pipeline_counter:      version_info.delete('pipeline_counter'),
+    pipeline_label:        version_info.delete('pipeline_label'),
+    stage_name:            version_info.delete('stage_name'),
+    stage_counter:         version_info.delete('stage_counter')
+  }
+
+  signed_files = Dir["#{target_dir}/signed/**/*.*"]
+
+  oses.each do |os, os_description|
+    metadata[os] ||= {}
+    os_signed_files = signed_files.find_all { |f| f =~ os_description[:regex] }
+    os_signed_files.each do |each_file|
+      file_contents = File.read(each_file)
+      component = each_file =~ /go-server/ ? 'server' : 'agent'
+      checksums = {
+        md5sum:    Digest::MD5.hexdigest(file_contents),
+        sha1sum:   Digest::SHA1.hexdigest(file_contents),
+        sha256sum: Digest::SHA256.hexdigest(file_contents),
+        sha512sum: Digest::SHA512.hexdigest(file_contents)
+      }
+
+      checksums.each do |k, v|
+        open("#{each_file}.#{k}", 'w') {|f| f.puts([v, File.basename(each_file)].join('  '))}
+      end
+
+      metadata[os][component] = checksums.merge({
+        file: Pathname.new(each_file).relative_path_from(signed_base_dir).to_s
+      })
+    end
+  end
+
+  open(target_dir.join('metadata.json'), 'w') do |f|
+    f.puts(JSON.generate(metadata))
+  end
+end
+
+file target_dir.join('latest.json') do
+  require 'time'
+  version_info = JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
+  full_version = version_info['go_full_version']
+  message = JSON.generate({
+      'latest-version' => full_version,
+      'release-time'   => Time.now.utc.xmlschema
+   })
+
+  digest            = OpenSSL::Digest::SHA512.new
+  private_key       = OpenSSL::PKey::RSA.new(File.read(File.expand_path('~/.update_check/subordinate-private-key.pem')), File.read(File.expand_path('~/.update_check/subordinate-private-key-passphrase')))
+  message_signature = Base64.encode64(private_key.sign(digest, message))
+
+  open(target_dir.join('latest.json'), 'w') do |f|
+    f.puts(JSON.generate({
+      message:                      message,
+      message_signature:            message_signature,
+      signing_public_key:           File.read(File.expand_path('~/.update_check/subordinate-public-key.pem')),
+      signing_public_key_signature: File.read(File.expand_path('~/.update_check/subordinate-public-key-digest'))
+    }))
+  end
+end
+
+task prepare_for_upload: ['target/latest.json', :metadata] do
+  rm_rf target_dir.join('upload', 'binaries')
+  rm_rf target_dir.join('upload', 'update-check')
+
+  mkdir_p target_dir.join('upload', 'update-check')
+
+  cp_r target_dir.join('signed'), target_dir.join('upload', 'binaries')
+  cp_r target_dir.join('latest.json'), target_dir.join('upload', 'binaries')
+  cp_r target_dir.join('metadata.json'), target_dir.join('upload', 'binaries')
+
+  cp_r target_dir.join('latest.json'), target_dir.join('upload', 'update-check')
+end
+
+task :verify_not_already_uploaded do
+  version_info = JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
+  full_version = version_info['go_full_version']
+
+  sh("aws s3 ls s3://#{S3_BUCKET}/binaries/#{full_version}/") do |ok, _res|
+    if ok
+      fail 'It appears that the version already exists on the s3 bucket node!'
+    end
+  end
+end
+
+task :upload do
+  version_info = JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
+  full_version = version_info['go_full_version']
+
+  # copy the binaries
+  sh("aws s3 sync #{target_dir.join('upload', 'binaries')} s3://#{S3_BUCKET}/binaries/#{full_version} --cache-control 'max-age=31536000'")
+
+  # copy the latest-version in a specific dir
+  sh("aws s3 cp #{target_dir.join('upload', 'update-check', 'latest.json')} s3://#{S3_UPDATE_CHECK_BUCKET}/channels/experimental/latest-#{full_version}.json --cache-control 'max-age=31536000'")
+
+  # copy the top level latest-version in a specific dir
+  sh("aws s3 cp #{target_dir.join('upload', 'update-check', 'latest.json')} s3://#{S3_UPDATE_CHECK_BUCKET}/channels/experimental/latest.json --cache-control 'max-age=300'")
+end
+
+task default: [*oses.keys, :metadata, 'target/latest.json', :prepare_for_upload, :verify_not_already_uploaded, :upload]
