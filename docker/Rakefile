@@ -1,15 +1,13 @@
 require 'time'
+require_relative './tag'
+
 
 %w(debsign aptrepo rpmsign yumrepo).each do |image|
-  tag = Time.now.utc.strftime('%Y%m%d_%H%M')
-
   desc "Build #{image}"
   task image do
     cd image do
-      sh("docker build --tag=gocd/#{image}:#{tag} .")
-      sh("docker tag gocd/#{image}:#{tag} gocd/#{image}:latest")
-      sh("docker push gocd/#{image}:#{tag}")
-      sh("docker push gocd/#{image}:latest")
+      sh("docker build --tag=gocdcontrib/#{image}:#{DOCKER_TAG} .")
+      sh("docker push gocdcontrib/#{image}:#{DOCKER_TAG}")
     end
   end
 
