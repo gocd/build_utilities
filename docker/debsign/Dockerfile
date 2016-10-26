@@ -11,13 +11,15 @@
 FROM ubuntu:xenial
 MAINTAINER GoCD Team <go-cd@googlegroups.com>
 
-RUN apt-get update
-RUN apt-get -y upgrade
-RUN apt-get -y install gnupg gnupg-agent debsigs dpkg-sig apt-utils bzip2 gzip unzip zip
+RUN apt-get update && \
+    apt-get -y upgrade && \
+    apt-get -y install gnupg gnupg-agent debsigs dpkg-sig apt-utils bzip2 gzip unzip zip && \
+    apt-get autoclean -y && \
+    apt-get autoremove -y
 
 COPY sign.sh /sign.sh
 ENV GPG_SIGNING_KEY_ID SOME_SIGNING_KEY
 
 # The actual signing commands
 
-ENTRYPOINT /sign.sh
+CMD /sign.sh

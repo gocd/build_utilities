@@ -15,6 +15,7 @@ require 'openssl'
 require 'base64'
 require 'yaml'
 require 'retriable'
+require_relative 'docker/tag'
 
 CONNECTION_CONFIG = YAML.load(File.read(File.expand_path('~/.windows-linux-signing-connection.yml')))
 OSX_HOST = CONNECTION_CONFIG['osx']['host']
@@ -131,7 +132,7 @@ class Redhat
   end
 
   def sign
-    create_container('gocd/rpmsign:latest')
+    create_container("gocdcontrib/rpmsign:#{DOCKER_TAG}")
   end
 end
 
@@ -145,7 +146,7 @@ class Debian
   end
 
   def sign
-    create_container('gocd/debsign:latest')
+    create_container("gocdcontrib/debsign:#{DOCKER_TAG}")
   end
 end
 

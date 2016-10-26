@@ -16,7 +16,7 @@ try bzip2 -9 --keep -- Packages
 
 # Generate the `Release` and `InRelease` files and corresponding gpg keys
 try apt-ftparchive release . > Release
-try gpg --default-key ${GPG_SIGNING_KEY_ID} --clearsign --output InRelease Release
+try gpg --default-key ${GPG_SIGNING_KEY_ID} --digest-algo sha512 --clearsign --output InRelease Release
 try gpg --default-key ${GPG_SIGNING_KEY_ID} --armor --detach-sign --sign --output Release.gpg Release
 sync
 sleep 2

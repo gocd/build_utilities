@@ -11,14 +11,15 @@
 FROM centos:6
 MAINTAINER GoCD Team <go-cd@googlegroups.com>
 
-RUN yum clean all
-RUN yum install --assumeyes epel-release
-RUN yum --assumeyes update
-RUN yum install --assumeyes createrepo repoview yum-utils rpm-build fakeroot yum-utils gnupg2 zip unzip gzip bzip2 tar rpm
+RUN yum clean all && \
+    yum install --assumeyes epel-release && \
+    yum --assumeyes update && \
+    yum install --assumeyes createrepo repoview yum-utils rpm-build fakeroot yum-utils gnupg2 zip unzip gzip bzip2 tar rpm && \
+    yum clean all
 
 COPY sign.sh /sign.sh
 ENV GPG_SIGNING_KEY_ID SOME_SIGNING_KEY
 
 # The actual signing commands
 
-ENTRYPOINT /sign.sh
+CMD /sign.sh
