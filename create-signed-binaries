@@ -217,11 +217,11 @@ class Generic
 end
 
 oses = {
-  osx:     { regex: /go-(server|agent).*\-osx.zip$/,  signer: MacOSX },
-  win:     { regex: /go-(server|agent).*\.exe$/,      signer: Windows },
-  rpm:     { regex: /go-(server|agent).*\.rpm$/,      signer: Redhat },
-  deb:     { regex: /go-(server|agent).*\.deb$/,      signer: Debian },
-  generic: { regex: /go-(server|agent).*[0-9]\.zip$/, signer: Generic },
+  osx:     { regex: /go-(server|agent).*\-osx.zip$/,  signer: MacOSX , installer_count: 2},
+  win:     { regex: /go-(server|agent).*\.exe$/,      signer: Windows , installer_count: 4 },
+  rpm:     { regex: /go-(server|agent).*\.rpm$/,      signer: Redhat , installer_count: 2 },
+  deb:     { regex: /go-(server|agent).*\.deb$/,      signer: Debian , installer_count: 2 },
+  generic: { regex: /go-(server|agent).*[0-9]\.zip$/, signer: Generic  , installer_count: 2},
 }
 
 target_dir        = Pathname.new('target')
@@ -236,8 +236,9 @@ end
 oses.each do |os, os_description|
   os_specific_files = all_files_in_release.find_all { |f| f['name'] =~ /#{os_description[:signer].source_prefix}/ && f['type'] == 'folder' }.collect{|f| f['files'] }.flatten
 
-  if os_specific_files.size != 2
-    fail "Was expecting there to be at-least 2 files for #{os}, got #{os_specific_files.count}"
+
+  if os_specific_files.size != os_description[:installer_count]
+    fail "Was expecting there to be at-least #{os_description[:installer_count]} files for #{os}, got #{os_specific_files.count}"
   end
 
   unsigned_os_base_dir = unsigned_base_dir.join(os.to_s).cleanpath
