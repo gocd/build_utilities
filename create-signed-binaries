@@ -296,7 +296,8 @@ task 'metadata' do
     os_signed_files = signed_files.find_all { |f| f =~ os_description[:regex] }
     os_signed_files.each do |each_file|
       file_contents = File.read(each_file)
-      component = each_file =~ /go-server/ ? 'server' : 'agent'
+      component = each_file =~ /go-server/ ? 'server' : 'agent'      
+      component = component + "32bit" if(each_file =~ /32bit/)
       checksums = {
         md5sum:    Digest::MD5.hexdigest(file_contents),
         sha1sum:   Digest::SHA1.hexdigest(file_contents),
