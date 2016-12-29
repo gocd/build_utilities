@@ -25,7 +25,7 @@ task :default do
 
   $stderr.puts "*** Demoting version #{go_full_version} from stable"
 
-  sh("aws s3 cp s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.previous.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.json --cache-control 'max-age=600'")
+  sh("AWS_PROFILE=update aws s3 cp s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.previous.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.json --cache-control 'max-age=600'")
 
   sh("aws s3 rm --recursive s3://#{S3_STABLE_BUCKET}/binaries/#{go_full_version}/")
   sh("aws s3 rm --recursive s3://#{S3_ADDONS_STABLE_BUCKET}/#{go_full_version}/")

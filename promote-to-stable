@@ -34,7 +34,7 @@ task :default do
 
   sh("./create-repositories-stable")
 
-  sh("aws s3 cp s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.previous.json --cache-control 'max-age=600'")
+  sh("AWS_PROFILE=update aws s3 cp s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.previous.json --cache-control 'max-age=600'")
 
   sh("aws s3 cp s3://#{S3_EXPERIMENTAL_BUCKET}/binaries/#{go_full_version}/latest.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.json --cache-control 'max-age=600'")
   sh("aws s3 cp s3://#{S3_EXPERIMENTAL_BUCKET}/binaries/#{go_full_version}/latest.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest-#{go_full_version}.json --cache-control 'max-age=600'")
