@@ -41,7 +41,7 @@ headers = {
             "Cookie" => cookies,
             http_basic_authentication: [username, password]
           }
-all_files_in_release += JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist.json", 'r', headers).read)
+  all_files_in_release += JSON.parse(open("https://build.gocd.io/go/files/#{job_identifier}/dist.json", 'r', headers).read)
 
 module Distro
   include RakeFileUtils
@@ -272,7 +272,7 @@ end
 
 task 'metadata' do
   require 'time'
-  version_info = JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
+  version_info = JSON.parse(open("https://build.gocd.io/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
 
   release_time = Time.now.utc
 
@@ -323,7 +323,7 @@ end
 
 file target_dir.join('latest.json') do
   require 'time'
-  version_info = JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
+  version_info = JSON.parse(open("https://build.gocd.io/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
   full_version = version_info['go_full_version']
   message = JSON.generate({
       'latest-version' => full_version,
@@ -358,7 +358,7 @@ task prepare_for_upload: ['target/latest.json', :metadata] do
 end
 
 task :verify_not_already_uploaded do
-  version_info = JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
+  version_info = JSON.parse(open("https://build.gocd.io/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
   full_version = version_info['go_full_version']
 
   sh("aws s3 ls s3://#{S3_BUCKET}/binaries/#{full_version}/") do |ok, _res|
@@ -369,7 +369,7 @@ task :verify_not_already_uploaded do
 end
 
 task :upload do
-  version_info = JSON.parse(open("https://build.go.cd/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
+  version_info = JSON.parse(open("https://build.gocd.io/go/files/#{job_identifier}/dist/meta/version.json", 'r', headers).read)
   full_version = version_info['go_full_version']
 
   # copy the binaries
