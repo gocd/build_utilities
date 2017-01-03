@@ -93,17 +93,17 @@ task :upload do
 
   %w(GOCD-GPG-KEY.asc InRelease Packages Packages.bz2 Packages.gz Release Release.gpg releases.json).each do |f|
     # low cache ttl
-    sh("aws s3 cp #{target_dir.join('repo', f)} s3://#{S3_BUCKET}/#{f} --cache-control 'max-age=600'")
+    sh("aws s3 cp #{target_dir.join('repo', f)} s3://#{S3_BUCKET}/#{f} --acl public-read --cache-control 'max-age=600'")
   end
 
   # yum repomd.xml (low cache ttl)
-  sh("aws s3 sync #{target_dir.join('repo', 'repodata')} s3://#{S3_BUCKET}/repodata/ --delete --cache-control 'max-age=600' --exclude '*' --include 'repomd.xml*'")
+  sh("aws s3 sync #{target_dir.join('repo', 'repodata')} s3://#{S3_BUCKET}/repodata/ --delete --acl public-read --cache-control 'max-age=600' --exclude '*' --include 'repomd.xml*'")
 
   # rest of the yum metadata (high cache ttl)
-  sh("aws s3 sync #{target_dir.join('repo', 'repodata')} s3://#{S3_BUCKET}/repodata/ --delete --cache-control 'max-age=31536000'")
+  sh("aws s3 sync #{target_dir.join('repo', 'repodata')} s3://#{S3_BUCKET}/repodata/ --delete --acl public-read --cache-control 'max-age=31536000'")
 
   # yum repoview (low cache ttl)
-  sh("aws s3 sync #{target_dir.join('repo', 'repoview')} s3://#{S3_BUCKET}/repoview/ --delete --cache-control 'max-age=600'")
+  sh("aws s3 sync #{target_dir.join('repo', 'repoview')} s3://#{S3_BUCKET}/repoview/ --delete --acl public-read --cache-control 'max-age=600'")
 end
 
 task default: [:clean, :init, :apt, :yum, :releases_json, :upload]
