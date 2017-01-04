@@ -18,7 +18,7 @@
 
   <name>API for plugins of GoCD</name>
   <description>The APIs described here are needed for developing plugins for GoCD - A continuous delivery server</description>
-  <url>http://go.cd</url>
+  <url>http://gocd.io</url>
 
   <licenses>
     <license>
