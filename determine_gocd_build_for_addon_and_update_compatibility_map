@@ -36,7 +36,7 @@ task :determine_corresponding_gocd_build do
     puts "Core is at revision #{gocd_git_revision}"
   end
 
-  releases_json_download_url="https://download.go.cd/experimental/releases.json"
+  releases_json_download_url="https://download.gocd.io/experimental/releases.json"
   open(releases_json_download_url) do |f|
     releases = JSON.parse(f.read)
     matching_builds = releases.reject { |x| x["git_sha"] != gocd_git_revision }
