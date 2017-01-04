@@ -373,7 +373,7 @@ task :upload do
   full_version = version_info['go_full_version']
 
   # copy the binaries
-  sh("aws s3 sync #{target_dir.join('upload', 'binaries')} s3://#{S3_BUCKET}/binaries/#{full_version} --cache-control 'max-age=31536000'")
+  sh("aws s3 sync #{target_dir.join('upload', 'binaries')} s3://#{S3_BUCKET}/binaries/#{full_version} --acl public-read --cache-control 'max-age=31536000'")
 
   # copy the latest-version in a specific dir
   sh("AWS_PROFILE=update aws s3 cp #{target_dir.join('upload', 'update-check', 'latest.json')} s3://#{S3_UPDATE_CHECK_BUCKET}/channels/experimental/latest-#{full_version}.json --cache-control 'max-age=31536000'")
