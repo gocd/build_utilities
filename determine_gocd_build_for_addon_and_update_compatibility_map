@@ -34,20 +34,30 @@ task :determine_corresponding_gocd_build do
     gocd_git_revision = stdout.read.strip if (error.empty?)
     raise "Could not get gocd git sha corresponding to enterprise #{go_enterprise_checkout_dir}. command failed: #{error}" unless (error.empty?)
     puts "Core is at revision #{gocd_git_revision}"
+  end    
+  
+  if(full_version = find_full_version(gocd_git_revision))
+    File.open("target/gocd_version.txt", 'w') { |file| file.write(full_version) }  
+  else
+    raise "Could not find an entry for #{gocd_git_revision} in releases.json, this usually means dist-all for revision #{gocd_git_revision} has not completed."
   end
+end
 
-  releases_json_download_url="https://download.gocd.io/experimental/releases.json"
+def find_full_version gocd_git_revision
+  experimental_releases_json_download_url="https://download.gocd.io/experimental/releases.json"
+  releases_json_download_url="https://download.gocd.io/releases.json"  
+  find_build_number_for(gocd_git_revision, experimental_releases_json_download_url) || find_build_number_for(gocd_git_revision, releases_json_download_url)
+end
+
+def find_build_number_for gocd_git_revision, releases_json_download_url
   open(releases_json_download_url) do |f|
     releases = JSON.parse(f.read)
     matching_builds = releases.reject { |x| x["git_sha"] != gocd_git_revision }
     if (!matching_builds.empty?)
       desired_build = matching_builds.first
-      full_version=desired_build["go_full_version"]
-      File.open("target/gocd_version.txt", 'w') { |file| file.write(full_version) }
-    else
-      raise "Could not find an entry for #{gocd_git_revision} in releases.json, this usually means dist-all for revision #{gocd_git_revision} has not completed."
+      desired_build["go_full_version"]      
     end
-  end
+  end  
 end
 
 task :update_gocd_compatibility_map do
