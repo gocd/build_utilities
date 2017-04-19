@@ -6,14 +6,15 @@ if File.basename($PROGRAM_NAME) != 'rake'
   exec "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
 end
 
-require 'representable/json'
-require 'rest-client'
-require_relative 'helpers/pipeline_representers'
+require 'net/http'
+require 'uri'
 require 'base64'
+require 'json'
+require 'tempfile'
 
 def validate(key)
   value = ENV[key].to_s.strip
-  fail "Please specify #{key}" if value == ''
+  raise "Please specify #{key}" if value == ''
   value
 end
 
@@ -25,20 +26,27 @@ username = validate('USERNAME')
 password = validate('PASSWORD')
 
 task :default do
+  repo_url = "https://mirrors.gocd.io/git/gocd/#{repo}"
+  pipeline_name = "#{repo}-#{version_to_release}"
 
-  include Representers
-  Attributes = Struct.new(:url, :destination, :filter, :invert_filter, :name, :auto_update, :branch, :submodule_folder, :shallow_clone)
-  Materials = Struct.new(:type, :attributes)
-  Pipeline = Struct.new(:label_template, :name, :template, :enable_pipeline_locking, :parameters, :environment_variables, :materials, :stages, :tracking_tool, :timer)
-  Group = Struct.new(:group, :pipeline)
-
-  attributes = Attributes.new("https://mirrors.gocd.io/git/gocd/#{repo}", nil, nil, false, nil, true, "#{version_to_release}", nil, true)
-  materials = Materials.new('git', attributes)
-  pipeline = Pipeline.new("${COUNT}", "#{repo}-#{version_to_release}", template, false, [], [], [materials], nil, nil, nil)
-  pipeline_obj = Group.new(gocd_group, pipeline)
-  url = 'https://build.go.cd/go/api/admin/pipelines'
-  payload = PipelineRepresenter.new(pipeline_obj).to_json
-  $auth = 'Basic ' + Base64.encode64( "#{username}:#{password}").chomp
-  RestClient.post(url, payload, headers = {:accept => 'application/vnd.go.cd.v4+json', :content_type => 'application/json', :authorization => $auth})
-
+  payload = {
+    group: gocd_group,
+    pipeline: {
+      label_template: '${COUNT}',
+      name: pipeline_name,
+      template: template,
+      enable_pipeline_locking: false,
+      materials: [
+        {
+          type: 'git',
+          attributes: {
+            url: repo_url,
+            branch: version_to_release,
+            shallow_clone: true
+          }
+        }
+      ]
+    }
+  }
+  sh("curl -u'#{username}:#{password}' -H 'Content-Type: application/json' -H 'Accept: application/vnd.go.cd.v4+json' 'https://build.gocd.io/go/api/admin/pipelines' -d '#{payload.to_json}'")
 end
