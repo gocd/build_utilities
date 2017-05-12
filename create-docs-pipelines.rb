@@ -27,7 +27,7 @@ password = validate('PASSWORD')
 
 task :default do
   repo_url = "https://mirrors.gocd.io/git/gocd/#{repo}"
-  pipeline_name = "#{repo}-#{version_to_release}"
+  pipeline_name = "#{repo}-release-#{version_to_release}"
 
   payload = {
     group: gocd_group,
@@ -41,7 +41,7 @@ task :default do
           type: 'git',
           attributes: {
             url: repo_url,
-            branch: version_to_release,
+            branch: "release-#{version_to_release}",
             shallow_clone: true
           }
         }
