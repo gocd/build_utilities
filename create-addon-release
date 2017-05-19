@@ -60,7 +60,7 @@ task :prepare_addons_for_upload do
 end
 
 task :upload do
-  sh("aws s3 sync #{addons_dir} s3://#{S3_BUCKET}/#{full_version} --acl public-read --cache-control 'max-age=31536000'")
+  sh("AWS_PROFILE=extensions aws s3 sync #{addons_dir} s3://#{S3_BUCKET}/#{full_version} --acl private --cache-control 'max-age=31536000'")
 end
 
 task default: [:clean, :init, :fetch_addons, :prepare_addons_for_upload, :upload]
