@@ -44,8 +44,8 @@ task :determine_corresponding_gocd_build do
 end
 
 def find_full_version gocd_git_revision
-  experimental_releases_json_download_url="https://download.gocd.io/experimental/releases.json"
-  releases_json_download_url="https://download.gocd.io/releases.json"  
+  experimental_releases_json_download_url="https://download.gocd.org/experimental/releases.json"
+  releases_json_download_url="https://download.gocd.org/releases.json"
   find_build_number_for(gocd_git_revision, experimental_releases_json_download_url) || find_build_number_for(gocd_git_revision, releases_json_download_url)
 end
 

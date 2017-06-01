@@ -47,7 +47,7 @@ end
 
 task :fetch do
   job_identifier = ENV['INSTALLER_JOB_IDENTIFIER'] || (fail 'INSTALLER_JOB_IDENTIFIER not set. Example: build-linux/645/go-sdk/2/go-plugin-api')
-  url = "https://build.gocd.io/go/files/#{job_identifier}/go-plugin-api.zip"
+  url = "https://build.gocd.org/go/files/#{job_identifier}/go-plugin-api.zip"
   username = ENV['ARTIFACT_FETCH_USERNAME'] || 'view'
   password = ENV['ARTIFACT_FETCH_PASSWORD'] || 'password'
 
@@ -64,7 +64,7 @@ task :fetch do
     end
 
     sh('unzip go-plugin-api.zip')
-    sh("curl --silent --fail --user #{username}:#{password} https://build.gocd.io/go/files/#{job_identifier}/dist/meta/version.json -o version.json")
+    sh("curl --silent --fail --user #{username}:#{password} https://build.gocd.org/go/files/#{job_identifier}/dist/meta/version.json -o version.json")
   end
 end
 
