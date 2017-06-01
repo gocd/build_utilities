@@ -24,7 +24,7 @@ task :default do
   job_identifier = ENV['INSTALLER_JOB_IDENTIFIER']
   username = ENV['ARTIFACT_FETCH_USERNAME'] || 'view'
   password = ENV['ARTIFACT_FETCH_PASSWORD'] || 'password'
-  version_info = JSON.parse(open("https://build.gocd.io/go/files/#{job_identifier}/dist/meta/version.json", 'r', http_basic_authentication: [username, password]).read)
+  version_info = JSON.parse(open("https://build.gocd.org/go/files/#{job_identifier}/dist/meta/version.json", 'r', http_basic_authentication: [username, password]).read)
   go_full_version = version_info['go_full_version']
 
   $stderr.puts "*** Promoting version #{go_full_version} to stable"

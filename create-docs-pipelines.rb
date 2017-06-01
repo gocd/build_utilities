@@ -48,5 +48,5 @@ task :default do
       ]
     }
   }
-  sh("curl -u'#{username}:#{password}' -H 'Content-Type: application/json' -H 'Accept: application/vnd.go.cd.v4+json' 'https://build.gocd.io/go/api/admin/pipelines' -d '#{payload.to_json}'")
+  sh("curl -u'#{username}:#{password}' -H 'Content-Type: application/json' -H 'Accept: application/vnd.go.cd.v4+json' 'https://build.gocd.org/go/api/admin/pipelines' -d '#{payload.to_json}'")
 end
