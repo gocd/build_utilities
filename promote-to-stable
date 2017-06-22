@@ -27,7 +27,7 @@ password = ENV['ARTIFACT_FETCH_PASSWORD'] || 'password'
 version_info = JSON.parse(open("https://build.gocd.org/go/files/#{job_identifier}/dist/meta/version.json", 'r', http_basic_authentication: [username, password]).read)
 go_full_version = version_info['go_full_version']
 
-task :promote_installers_to_stable do
+task :promote_artifacts_to_stable do
   $stderr.puts "*** Promoting version #{go_full_version} to stable"
 
   sh("aws s3 sync s3://#{S3_EXPERIMENTAL_BUCKET}/binaries/#{go_full_version} s3://#{S3_STABLE_BUCKET}/binaries/#{go_full_version} --acl public-read --cache-control 'max-age=31536000'")
