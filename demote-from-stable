@@ -9,6 +9,7 @@ end
 require 'json'
 require 'open-uri'
 require 'yaml'
+require_relative 'lib/addon_metadata.rb'
 
 S3_BUCKET_CONFIG = YAML.load(File.read(File.expand_path('~/.s3.yml')))
 S3_EXPERIMENTAL_BUCKET = S3_BUCKET_CONFIG[ENV['S3_EXPERIMENTAL_BUCKET_TYPE'] || 'downloads-experimental']
@@ -16,13 +17,13 @@ S3_STABLE_BUCKET = S3_BUCKET_CONFIG[ENV['S3_STABLE_BUCKET_TYPE'] || 'downloads-s
 S3_ADDONS_STABLE_BUCKET = S3_BUCKET_CONFIG[ENV['S3_ADDONS_STABLE_BUCKET_TYPE'] || 'addons-stable']
 S3_UPDATE_CHECK_BUCKET = S3_BUCKET_CONFIG[ENV['UPDATE_CHECK_BUCKET_TYPE'] || 'update-check']
 
-task :default do
-  job_identifier = ENV['INSTALLER_JOB_IDENTIFIER']
-  username = ENV['ARTIFACT_FETCH_USERNAME'] || 'view'
-  password = ENV['ARTIFACT_FETCH_PASSWORD'] || 'password'
-  version_info = JSON.parse(open("https://build.gocd.org/go/files/#{job_identifier}/dist/meta/version.json", 'r', http_basic_authentication: [username, password]).read)
-  go_full_version = version_info['go_full_version']
+job_identifier = ENV['INSTALLER_JOB_IDENTIFIER']
+username = ENV['ARTIFACT_FETCH_USERNAME'] || 'view'
+password = ENV['ARTIFACT_FETCH_PASSWORD'] || 'password'
+version_info = JSON.parse(open("https://build.gocd.org/go/files/#{job_identifier}/dist/meta/version.json", 'r', http_basic_authentication: [username, password]).read)
+go_full_version = version_info['go_full_version']
 
+task :demote_artifacts do
   $stderr.puts "*** Demoting version #{go_full_version} from stable"
 
   sh("AWS_PROFILE=update aws s3 cp s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.previous.json s3://#{S3_UPDATE_CHECK_BUCKET}/channels/supported/latest.json --cache-control 'max-age=600' --acl public-read")
@@ -32,3 +33,29 @@ task :default do
 
   sh("./create-repositories-stable")
 end
+
+task :remove_version_from_extensions_metadata do
+  path_without_bucket_name = S3_ADDONS_STABLE_BUCKET.sub(%r{^[^/]+/}, '')
+
+  pg_addon_metadata = AddonMetadata.new(
+    addon_file_s3_parent:  "#{path_without_bucket_name}/#{go_full_version}",
+    metadata_full_s3_path: "s3://#{S3_ADDONS_STABLE_BUCKET}/go-postgresql.json",
+    version:               go_full_version,
+    prefix:                'pg'
+  )
+
+  bc_addon_metadata = AddonMetadata.new(
+    addon_file_s3_parent:  "#{path_without_bucket_name}/#{go_full_version}",
+    metadata_full_s3_path: "s3://#{S3_ADDONS_STABLE_BUCKET}/go-business-continuity.json",
+    version:               go_full_version,
+    prefix:                'bc'
+  )
+
+  pg_addon_metadata.remove_version(go_full_version)
+  bc_addon_metadata.remove_version(go_full_version)
+
+  pg_addon_metadata.upload_combined_metadata_file
+  bc_addon_metadata.upload_combined_metadata_file
+end
+
+task default: [:demote_artifacts, :remove_version_from_extensions_metadata]
