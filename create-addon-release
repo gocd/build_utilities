@@ -11,6 +11,7 @@ require 'json'
 require 'open-uri'
 require 'pathname'
 require 'yaml'
+require_relative 'lib/addon_metadata.rb'
 
 S3_BUCKET_CONFIG = YAML.load(File.read(File.expand_path('~/.s3.yml')))
 S3_BUCKET = S3_BUCKET_CONFIG[ENV['BUCKET_TYPE'] || 'addons-experimental']
@@ -22,6 +23,21 @@ credentials = ENV['CREDENTIALS'] || (fail 'CREDENTIALS not set')
 
 target_dir = Pathname.new('target')
 addons_dir = target_dir.join('s3', full_version)
+path_without_bucket_name = S3_BUCKET.sub(%r{^[^/]+/}, '')
+
+pg_addon_metadata = AddonMetadata.new(
+  addon_file_s3_parent:  "#{path_without_bucket_name}/#{full_version}",
+  metadata_full_s3_path: "s3://#{S3_BUCKET}/go-postgresql.json",
+  version:               full_version,
+  prefix:                'pg'
+)
+
+bc_addon_metadata = AddonMetadata.new(
+  addon_file_s3_parent:  "#{path_without_bucket_name}/#{full_version}",
+  metadata_full_s3_path: "s3://#{S3_BUCKET}/go-business-continuity.json",
+  version:               full_version,
+  prefix:                'bc'
+)
 
 task :clean do
   rm_rf target_dir
@@ -47,6 +63,7 @@ end
 task :prepare_addons_for_upload do
   rm_rf addons_dir
   mkdir_p addons_dir
+
   Dir['target/addons/*.jar'].each do |addon|
     cp addon, addons_dir
   end
@@ -57,10 +74,18 @@ task :prepare_addons_for_upload do
     sh('sha256sum *.jar > addons-sha256.checksum')
     sh('sha512sum *.jar > addons-sha512.checksum')
   end
+
+  pg_metadata_file = pg_addon_metadata.create(Dir[addons_dir.join('go-postgresql*.jar')].first)
+  pg_addon_metadata.append_to_existing(JSON.parse(File.read(pg_metadata_file)))
+
+  bc_metadata_file = bc_addon_metadata.create(Dir[addons_dir.join('go-business-continuity*.jar')].first)
+  bc_addon_metadata.append_to_existing(JSON.parse(File.read(bc_metadata_file)))
 end
 
 task :upload do
   sh("AWS_PROFILE=extensions aws s3 sync #{addons_dir} s3://#{S3_BUCKET}/#{full_version} --acl private --cache-control 'max-age=31536000'")
+  pg_addon_metadata.upload_combined_metadata_file
+  bc_addon_metadata.upload_combined_metadata_file
 end
 
 task default: [:clean, :init, :fetch_addons, :prepare_addons_for_upload, :upload]
