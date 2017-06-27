@@ -26,7 +26,7 @@ username = validate('USERNAME')
 password = validate('PASSWORD')
 
 task :default do
-  repo_url = "https://mirrors.gocd.io/git/gocd/#{repo}"
+  repo_url = "https://mirrors.gocd.org/git/gocd/#{repo}"
   pipeline_name = "#{repo}-release-#{version_to_release}"
 
   payload = {
