@@ -1,7 +1,7 @@
 require 'rest-client'
 require 'json'
 
-username = ENV['USERNAME']
+username = ENV['USER_NAME']
 password = ENV['PASSWORD']
 org = ENV['ORG']
 
