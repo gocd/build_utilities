@@ -9,7 +9,7 @@ objects = []
 begin
   new_objects = s3_client.list_objects_v2(bucket:ENV["S3_BUCKET"], continuation_token: last_key)
   objects_to_be_deleted = new_objects.to_h[:contents].map do |object|
-    if object[:last_modified].strftime('%Y-%m-%d') <= (Date.today() - 10).strftime('%Y-%m-%d')
+    if !object[:key].include?("robots") && object[:last_modified].strftime('%Y-%m-%d') <= (Date.today() - 10).strftime('%Y-%m-%d')
       {key: object[:key]}
     end
   end
