@@ -1,11 +1,5 @@
 #!/usr/bin/env ruby
 
-if File.basename($PROGRAM_NAME) != 'rake'
-  require 'shellwords'
-  puts "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
-  exec "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
-end
-
 require 'net/http'
 require 'uri'
 require 'base64'
@@ -49,4 +43,5 @@ task :default do
     }
   }
   sh("curl -u'#{username}:#{password}' -H 'Content-Type: application/json' -H 'Accept: application/vnd.go.cd.v4+json' 'https://build.gocd.org/go/api/admin/pipelines' -d '#{payload.to_json}'")
+  sh("curl -u'#{username}:#{password}' -H 'Confirm: true' 'https://build.gocd.org/go/api/pipelines/#{pipeline_name}/unpause' -X POST")
 end
