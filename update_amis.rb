@@ -10,7 +10,7 @@ $stdout.sync = true
 $stderr.sync = true
 
 require 'aws-sdk'
-require 'yaml'
+require 'json'
 
 def env(key)
   value = ENV[key].to_s.strip
@@ -18,7 +18,7 @@ def env(key)
   value
 end
 
-repo_url = env('REPO_URL')
+s3_bucket = env('S3_BUCKET')
 version = env('VERSION')
 
 def image_list(ec2_client, region, type, version)
@@ -75,17 +75,34 @@ def demo_ami(version)
   amis_demo
 end
 
+def upload_to_s3(s3_bucket, s3_client)
+  s3_client.put_object({acl: "public-read",
+                        body: File.read('amis.json'),
+                        bucket: s3_bucket,
+                        cache_control: "max-age=600",
+                        content_type: 'application/json',
+                        content_md5: Digest::MD5.file('amis.json').base64digest,
+                        key: 'amis.json'
+                       })
+end
+
 task :default do
-  all_amis = {"#{version}": {"server": server_amis(version), "demo": demo_ami(version)}}
-  all_amis_yaml = all_amis.to_yaml
-  yaml_file = all_amis_yaml.gsub("---\n", '')
-  p "Cloning www.go.cd"
-  sh("git clone #{repo_url} website --depth 1")
-  File.open("website/data/amis.yml", 'a') {|f| f.write(yaml_file) }
-  cd 'website' do
-    sh("git add data/amis.yml")
-    sh("git commit -m 'Updated amis.yml with version #{version}'")
-    sh("git push #{repo_url} master")
+  all_amis = {'go_version' => version, 'server_amis' => server_amis(version), 'demo_amis' => demo_ami(version)}
+  s3_client = Aws::S3::Client.new(region: 'us-east-1')
+  begin
+  response = s3_client.get_object(bucket: s3_bucket, key: 'amis.json')
+  rescue Aws::S3::Errors::NoSuchKey
+    File.open('amis.json', 'w'){|f| f.write([all_amis].to_json)}
+    puts "Creating #{s3_bucket}/amis.json"
+    upload_to_s3(s3_bucket, s3_client)
   end
-  rm_rf 'website'
+  unless response.nil?
+    amis_from_bucket = JSON.parse(response.body.string)
+    amis_from_bucket.delete_if {|hash| hash['go_version'] == version}
+    amis_from_bucket << all_amis
+    to_be_uploaded = amis_from_bucket.sort_by { |hash| hash['go_version']}
+    File.open('amis.json', 'w'){|f| f.write(to_be_uploaded.to_json)}
+    puts "Uploading amis.json to #{s3_bucket}/amis.json"
+    upload_to_s3(s3_bucket, s3_client)
+  end
 end
