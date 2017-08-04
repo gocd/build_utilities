@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+# USAGE
+# VERSION=x.x.x AWS_ACCESS_KEY_ID=access-key-id AWS_SECRET_ACCESS_KEY=secret-access-key S3_ACCESS_KEY_ID=s3-access-key-id S3_SECRET_ACCESS_KEY=s3_secret-access-key S3_BUCKET=foo bundle exec rake -f update_amis.rb
+
 if File.basename($0) != "rake"
   require 'shellwords'
   puts "bundle exec rake -f #{Shellwords.escape($0)} #{Shellwords.shelljoin(ARGV)}"
@@ -19,6 +22,9 @@ def env(key)
 end
 
 s3_bucket = env('S3_BUCKET')
+s3_access_key_id = env('S3_ACCESS_KEY_ID')
+s3_secret_access_key = env('S3_SECRET_ACCESS_KEY')
+
 version = env('VERSION')
 
 def image_list(ec2_client, region, type, version)
@@ -88,7 +94,7 @@ end
 
 task :default do
   all_amis = {'go_version' => version, 'server_amis' => server_amis(version), 'demo_amis' => demo_ami(version)}
-  s3_client = Aws::S3::Client.new(region: 'us-east-1')
+  s3_client = Aws::S3::Client.new(region: 'us-east-1', credentials: Aws::Credentials.new(s3_access_key_id, s3_secret_access_key))
   begin
   response = s3_client.get_object(bucket: s3_bucket, key: 'amis.json')
   rescue Aws::S3::Errors::NoSuchKey
