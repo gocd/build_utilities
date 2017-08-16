@@ -1,5 +1,11 @@
 #!/usr/bin/env ruby
 
+if File.basename($PROGRAM_NAME) != 'rake'
+  require 'shellwords'
+  puts "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+  exec "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+end
+
 require 'net/http'
 require 'uri'
 require 'base64'
