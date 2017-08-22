@@ -8,7 +8,14 @@ org = ENV['ORG']
 login = RestClient.post('https://hub.docker.com/v2/users/login/', {username: username, password: password}, {:accept => 'application/json', :content_type => 'application/json'})
 token = JSON.parse(login)['token']
 
-%w(gocd-server gocd-agent-centos-6 gocd-agent-centos-7 gocd-agent-debian-7 gocd-agent-debian-8 gocd-agent-ubuntu-12.04 gocd-agent-ubuntu-14.04 gocd-agent-ubuntu-16.04 gocd-agent-alpine-3.5).each do |repo|
+response = RestClient.get("https://hub.docker.com/v2/repositories/#{org}/?page_size=50", {:accept => 'application/json', :Authorization => "JWT #{token}"})
+all_repos = JSON.parse(response)
+
+agents = all_repos['results'].map do |repo|
+  repo['name'] if (repo['name'].start_with?('gocd-agent-') && repo['name'] != 'gocd-agent-deprecated') || repo['name'] == 'gocd-server'
+end
+
+agents.compact.each do |repo|
   list_all_tags = RestClient.get("https://hub.docker.com/v2/repositories/#{org}/#{repo}/tags?page_size=50", {:accept => 'application/json', :Authorization => "JWT #{token}"})
   tags = JSON.parse(list_all_tags)['results'].map() {|result| result['name']}
   p tags
