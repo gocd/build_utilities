@@ -106,6 +106,7 @@ class MacOSX
     mkdir_p tmp_dir
 
     sh("unzip -q #{unsigned_base_dir.join(unsigned_file_name)} -d #{tmp_dir}")
+    sh("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{OSX_USER}@#{OSX_HOST} rm -rf #{tmp_dir_name}")
     sh("rsync -avzP -e 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' --delete #{tmp_dir}/ #{OSX_USER}@#{OSX_HOST}:#{tmp_dir_name}")
 
     keychain_password_file = ENV['KEYCHAIN_PASSWORD_FILE'] || '${HOME}/Library/Keychains/codesigner.password'
