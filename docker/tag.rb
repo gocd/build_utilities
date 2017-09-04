@@ -1,1 +1,1 @@
-DOCKER_TAG = '0.1'
+DOCKER_TAG = '0.2'
