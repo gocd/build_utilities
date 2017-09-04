@@ -133,7 +133,7 @@ class Redhat
   end
 
   def sign
-    create_container("gocdcontrib/rpmsign:#{DOCKER_TAG}")
+    create_container("gocddev/rpmsign:#{DOCKER_TAG}")
   end
 end
 
@@ -147,7 +147,7 @@ class Debian
   end
 
   def sign
-    create_container("gocdcontrib/debsign:#{DOCKER_TAG}")
+    create_container("gocddev/debsign:#{DOCKER_TAG}")
   end
 end
 

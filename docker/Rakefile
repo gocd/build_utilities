@@ -6,8 +6,8 @@ require_relative './tag'
   desc "Build #{image}"
   task image do
     cd image do
-      sh("docker build --tag=gocdcontrib/#{image}:#{DOCKER_TAG} .")
-      sh("docker push gocdcontrib/#{image}:#{DOCKER_TAG}")
+      sh("docker build --tag=gocddev/#{image}:#{DOCKER_TAG} .")
+      sh("docker push gocddev/#{image}:#{DOCKER_TAG}")
     end
   end
 
