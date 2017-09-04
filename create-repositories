@@ -41,13 +41,13 @@ task :apt do
   mkdir_p 'target/tmp'
   require 'tmpdir'
 
-  sh("docker pull gocdcontrib/aptrepo:#{DOCKER_TAG}")
+  sh("docker pull gocddev/aptrepo:#{DOCKER_TAG}")
 
   terminate_docker_container('aptrepo')
   Dir.mktmpdir(nil, 'target/tmp') do |tmp_dir|
     tmp_dir = Pathname.new(tmp_dir).expand_path
     cp_r File.expand_path('~/.gnupg'), tmp_dir
-    sh("docker run --privileged=false --interactive=true --attach stdout --attach stderr --rm --env 'GPG_SIGNING_KEY_ID=8816C449' --env 'SIGNING_USER=#{Process.uid}' --env 'SIGNING_GROUP=#{Process.gid}' --volume #{target_dir.expand_path}/repo:/repo --volume #{tmp_dir}/.gnupg:/root/.gnupg --name 'aptrepo' 'gocdcontrib/aptrepo:#{DOCKER_TAG}'")
+    sh("docker run --privileged=false --interactive=true --attach stdout --attach stderr --rm --env 'GPG_SIGNING_KEY_ID=8816C449' --env 'SIGNING_USER=#{Process.uid}' --env 'SIGNING_GROUP=#{Process.gid}' --volume #{target_dir.expand_path}/repo:/repo --volume #{tmp_dir}/.gnupg:/root/.gnupg --name 'aptrepo' 'gocddev/aptrepo:#{DOCKER_TAG}'")
   end
 
   sh('gpg --armor --export 8816C449 > target/repo/GOCD-GPG-KEY.asc ')
@@ -61,13 +61,13 @@ task :yum do
   mkdir_p 'target/tmp'
   require 'tmpdir'
 
-  sh("docker pull gocdcontrib/yumrepo:#{DOCKER_TAG}")
+  sh("docker pull gocddev/yumrepo:#{DOCKER_TAG}")
 
   terminate_docker_container('yumrepo')
   Dir.mktmpdir(nil, 'target/tmp') do |tmp_dir|
     tmp_dir = Pathname.new(tmp_dir).expand_path
     cp_r File.expand_path('~/.gnupg'), tmp_dir
-    sh("docker run --privileged=false --interactive=false --attach stdout --attach stderr --rm --env 'GPG_SIGNING_KEY_ID=8816C449' --env 'SIGNING_USER=#{Process.uid}' --env 'SIGNING_GROUP=#{Process.gid}' --volume #{target_dir.expand_path}/repo:/repo --volume #{tmp_dir}/.gnupg:/root/.gnupg --name 'yumrepo' 'gocdcontrib/yumrepo:#{DOCKER_TAG}'")
+    sh("docker run --privileged=false --interactive=false --attach stdout --attach stderr --rm --env 'GPG_SIGNING_KEY_ID=8816C449' --env 'SIGNING_USER=#{Process.uid}' --env 'SIGNING_GROUP=#{Process.gid}' --volume #{target_dir.expand_path}/repo:/repo --volume #{tmp_dir}/.gnupg:/root/.gnupg --name 'yumrepo' 'gocddev/yumrepo:#{DOCKER_TAG}'")
   end
 
   sh('gpg --armor --export 8816C449 > target/repo/GOCD-GPG-KEY.asc ')
