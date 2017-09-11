@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+
+if File.basename($PROGRAM_NAME) != 'rake'
+  require 'shellwords'
+  puts "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+  exec "bundle exec rake -f #{Shellwords.escape($PROGRAM_NAME)} #{Shellwords.shelljoin(ARGV)}"
+end
+
+require 'rubygems'
+require 'timeout'
+require 'json'
+require 'yaml'
+
+CONNECTION_CONFIG = YAML.safe_load(File.read(File.expand_path('~/.windows-linux-signing-connection.yml')))
+OSX_HOST = CONNECTION_CONFIG['osx']['host']
+OSX_USER = CONNECTION_CONFIG['osx']['user']
+
+RELEASES_JSON_URL = ENV['RELEASES_JSON_URL'] || 'https://download.go.cd/experimental/releases.json'
+
+namespace :verify do
+  task :osx do
+    sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{OSX_USER}@#{OSX_HOST}  'mkdir -p /tmp/verify-installer'"
+    begin
+      %w(server agent).each{|installer|
+        sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{OSX_USER}@#{OSX_HOST}  'curl -L -o /tmp/verify-installer/go-#{installer}-#{full_version}-osx.zip --fail  https://download.gocd.org/experimental/binaries/#{full_version}/osx/go-#{installer}-#{full_version}-osx.zip'"  do |ok, _res|
+          raise 'Error while downloading osx installer' unless ok
+          sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{OSX_USER}@#{OSX_HOST}  'unzip -d /tmp/verify-installer /tmp/verify-installer/go-#{installer}-#{full_version}-osx.zip'"
+          sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{OSX_USER}@#{OSX_HOST}  'codesign --verify --verbose /tmp/verify-installer/Go\\ #{installer}.app'"
+        end
+      }
+    ensure
+      sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{OSX_USER}@#{OSX_HOST}  'rm -rf /tmp/verify-installer'"
+    end
+  end
+
+  def full_version
+    json = JSON.parse(open(RELEASES_JSON_URL).read)
+    json.sort_by { |a| a['go_full_version'] }.last['go_full_version']
+  end
+end
