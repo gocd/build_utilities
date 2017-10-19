@@ -110,7 +110,17 @@ def docker_agents(dockerhub_username, dockerhub_password, org)
 end
 
 task :default do
-  cloud_images_for_version = {'go_version' => version, 'server_amis' => server_amis(version), 'demo_amis' => demo_ami(version), 'server_docker' => [{'image_name' => 'gocd-server'}], 'agents_docker' => docker_agents(dockerhub_username, dockerhub_password, org)}
+  release_time = Time.now.utc
+  cloud_images_for_version = {
+    'go_version'            => version,
+    'release_time_readable' => release_time.xmlschema,
+    'release_time'          => release_time.to_i,
+    'server_amis'           => server_amis(version),
+    'demo_amis'             => demo_ami(version),
+    'server_docker'         => [{'image_name' => 'gocd-server'}],
+    'agents_docker'         => docker_agents(dockerhub_username, dockerhub_password, org)
+  }
+
   s3_client = Aws::S3::Client.new(region: 'us-east-1', credentials: Aws::Credentials.new(s3_access_key_id, s3_secret_access_key))
   begin
   response = s3_client.get_object(bucket: s3_bucket, key: 'cloud.json')
