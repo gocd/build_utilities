@@ -85,8 +85,9 @@ task :update_gocd_compatibility_map do
     f.puts(JSON.pretty_generate(to_be_written))
   end
 
+  repo = ENV['REPO_URL'] || 'origin'
   cd "../gocd_addons_compatibility" do
-    sh ("git add .; git commit -m 'updated addons build info for #{addons.join(',')} against Gocd #{gocd_version}'; git push")
+    sh ("git add .; git commit -m 'updated addons build info for #{addons.join(',')} against Gocd #{gocd_version}'; git push #{repo} master")
   end
 end
 
