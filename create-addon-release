@@ -18,7 +18,7 @@ S3_BUCKET = S3_BUCKET_CONFIG[ENV['BUCKET_TYPE'] || 'addons-experimental']
 
 full_version = ENV['CORRESPONDING_GOCD_VERSION'] || (fail 'CORRESPONDING_GOCD_VERSION not set')
 go_server_url = ENV['GO_SERVER_URL'] || (fail 'GO_SERVER_URL not set')
-go_dependency_locator_go_postgresql_build = ENV['GO_DEPENDENCY_LOCATOR_GO_POSTGRESQL_BUILD'] || (fail 'GO_DEPENDENCY_LOCATOR_GO_POSTGRESQL_BUILD not set')
+go_dependency_locator_go_addon_build = ENV['GO_DEPENDENCY_LOCATOR_GO_ADDON_BUILD'] || (fail 'GO_DEPENDENCY_LOCATOR_GO_ADDON_BUILD not set')
 credentials = ENV['CREDENTIALS'] || (fail 'CREDENTIALS not set')
 
 target_dir = Pathname.new('target')
@@ -49,8 +49,8 @@ end
 
 task :fetch_addons do
   cd 'target' do
-    bc_url = JSON.parse(open("#{go_server_url}/files/#{go_dependency_locator_go_postgresql_build}/business-continuity/business-continuity-addon.json", 'r', http_basic_authentication: credentials.split(':')).read).find_all {|f| f['name'] =~ /go-business.*.jar/ && f['type'] == 'file'}.first['url']
-    pg_url = JSON.parse(open("#{go_server_url}/files/#{go_dependency_locator_go_postgresql_build}/postgresql/postgresql-addon.json", 'r', http_basic_authentication: credentials.split(':')).read).find_all {|f| f['name'] =~ /go-postgresql.*.jar/ && f['type'] == 'file'}.first['url']
+    bc_url = JSON.parse(open("#{go_server_url}/files/#{go_dependency_locator_go_addon_build}/business-continuity/business-continuity-addon.json", 'r', http_basic_authentication: credentials.split(':')).read).find_all {|f| f['name'] =~ /go-business.*.jar/ && f['type'] == 'file'}.first['url']
+    pg_url = JSON.parse(open("#{go_server_url}/files/#{go_dependency_locator_go_addon_build}/postgresql/postgresql-addon.json", 'r', http_basic_authentication: credentials.split(':')).read).find_all {|f| f['name'] =~ /go-postgresql.*.jar/ && f['type'] == 'file'}.first['url']
 
     mkdir_p 'addons'
     cd 'addons' do
