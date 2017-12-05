@@ -11,3 +11,4 @@ release_notes.markdown
 release_notes.html
 *.swp
 vendor
+node_modules

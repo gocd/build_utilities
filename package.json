@@ -1,0 +1,18 @@
+{
+  "name": "y",
+  "version": "0.1.0",
+  "description": "a simple build utility script to perform dockerhub description update.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gocd/build_utilities.git"
+  },
+  "author": "GoCD Contributors",
+  "license": "Apache 2.0",
+  "bugs": {
+    "url": "https://github.com/gocd/build_utilities/issues"
+  },
+  "homepage": "https://github.com/gocd/build_utilities#readme",
+  "dependencies": {
+    "docker-hub-api": "^0.5.1"
+  }
+}
