@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 require 'rubygems'
-require 'rake'
 %w(rake rake/file_utils).each do |f|
   begin
     require f
