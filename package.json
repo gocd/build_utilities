@@ -13,6 +13,7 @@
   },
   "homepage": "https://github.com/gocd/build_utilities#readme",
   "dependencies": {
-    "docker-hub-api": "^0.5.1"
+    "docker-hub-api": "^0.5.1",
+    "github-base": "^0.5.4"
   }
 }
