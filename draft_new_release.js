@@ -17,7 +17,7 @@ var github = new GitHub({ token: GITHUB_TOKEN });
 console.log(`Creating github release for version ${GOCD_VERSION} with commit ${RELEASE_GIT_SHA}`);
 
 github.post(`/repos/${OWNER}/gocd/releases`, {
-  tag_name: 'v' + GOCD_VERSION,
+  tag_name: GOCD_VERSION,
   target_commitish: RELEASE_GIT_SHA,
   name: `GoCD ${GOCD_VERSION}`,
   body: 'Check release notes at https://www.gocd.org/releases/'
