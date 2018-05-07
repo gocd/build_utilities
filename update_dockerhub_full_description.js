@@ -9,7 +9,6 @@ const allImages = [
   'gocd-agent-docker-dind',
   'gocd-agent-centos-6',
   'gocd-agent-centos-7',
-  'gocd-agent-debian-7',
   'gocd-agent-debian-8',
   'gocd-agent-debian-9',
   'gocd-agent-ubuntu-12.04',
