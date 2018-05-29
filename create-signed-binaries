@@ -163,8 +163,6 @@ class Windows
   def sign
     require 'rubygems'
     require 'bundler/setup'
-    require 'winrm'
-    require 'winrm-elevated'
 
     Retriable.retriable(tries: 5, base_interval: 10, max_interval: 60) do
       sh("timeout 60 scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{unsigned_base_dir.join(unsigned_file_name)} #{WINDOWS_USER}@#{WINDOWS_HOST}:/to-sign.exe")
@@ -183,23 +181,10 @@ class Windows
   private
 
   def execute_remote_command(cmd, exit_code = 0)
-    puts "Executing `#{cmd}` remotely"
-    Retriable.retriable(tries: 5, base_interval: 10, max_interval: 60, timeout: 60) do
-      result = runner.powershell_elevated(cmd, WINDOWS_USER, WINDOWS_PASS)
-      puts result.output.gsub(/\r\n?/, "\n").gsub(/\n\n/, "\n")
-      if result[:exitcode] != exit_code
-        fail "The remote command exited with status #{result[:exitcode]}"
-      end
-    end
+    sh("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null #{WINDOWS_USER}@#{WINDOWS_HOST} '#{cmd}'")
   end
 
-  def runner
-    @runner ||= WinRM::Elevated::Runner.new(winrm)
-  end
 
-  def winrm
-    @winrm ||= WinRM::WinRMWebService.new("http://#{WINDOWS_HOST}:5985/wsman", :plaintext, user: WINDOWS_USER, pass: WINDOWS_PASS, basic_auth_only: true)
-  end
 end
 
 class Generic
