@@ -48,6 +48,7 @@ task :default do
       ]
     }
   }
-  sh("curl -u'#{username}:#{password}' -H 'Content-Type: application/json' -H 'Accept: application/vnd.go.cd.v4+json' 'https://build.gocd.org/go/api/admin/pipelines' -d '#{payload.to_json}'")
-  sh("curl -u'#{username}:#{password}' -H 'Confirm: true' 'https://build.gocd.org/go/api/pipelines/#{pipeline_name}/unpause' -X POST")
+  
+  exec("curl -u'#{username}:#{password}' -H 'Content-Type: application/json' -H 'Accept: application/vnd.go.cd.v4+json' 'https://build.gocd.org/go/api/admin/pipelines' -d '#{payload.to_json}'")
+  exec("curl -u'#{username}:#{password}' -H 'Confirm: true' 'https://build.gocd.org/go/api/pipelines/#{pipeline_name}/unpause' -X POST")
 end
