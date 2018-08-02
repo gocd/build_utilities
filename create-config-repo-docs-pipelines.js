@@ -4,6 +4,8 @@ const childProcess = require('child_process');
 const JSONPipeline = require('./docs_pipeline_template/json_template');
 const YAMLPipeline = require('./docs_pipeline_template/yaml_template');
 
+const GIT_USERNAME = process.env.GIT_USERNAME || bomb('GIT_USERNAME');
+const GIT_PASSWORD = process.env.GIT_PASSWORD || bomb('GIT_PASSWORD');
 const GO_VERSION = process.env.GO_VERSION || bomb('GO_VERSION');
 const TEMPLATE_NAME = process.env.TEMPLATE_NAME || bomb('TEMPLATE_NAME');
 const PIPELINE_GROUP_NAME = process.env.PIPELINE_GROUP_NAME || bomb('PIPELINE_GROUP_NAME');
@@ -23,7 +25,7 @@ if (isJSONFormat(PIPELINE_CONFIG_FORMAT)) {
 	pipelineFileName = `${GO_VERSION}.gocd.yaml`;
 }
 
-const githubRepoUrl = `https://github.com/gocd/${GITHUB_REPO_NAME}`;
+const githubRepoUrl = `https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/gocd/${GITHUB_REPO_NAME}`;
 const folderToStorePipelineConfig = 'build_gocd_pipelines';
 
 gitClone(githubRepoUrl, GITHUB_REPO_NAME);
