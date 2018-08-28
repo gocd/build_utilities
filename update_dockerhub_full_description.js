@@ -6,6 +6,7 @@ const allImages = [
   'gocd-agent-alpine-3.5',
   'gocd-agent-alpine-3.6',
   'gocd-agent-alpine-3.7',
+  'gocd-agent-alpine-3.8',
   'gocd-agent-docker-dind',
   'gocd-agent-centos-6',
   'gocd-agent-centos-7',
@@ -13,7 +14,8 @@ const allImages = [
   'gocd-agent-debian-9',
   'gocd-agent-ubuntu-12.04',
   'gocd-agent-ubuntu-14.04',
-  'gocd-agent-ubuntu-16.04'
+  'gocd-agent-ubuntu-16.04',
+  'gocd-agent-ubuntu-18.04'
 ];
 
 console.log('Updating the Dockerhub description to the contents of README in each repository.');
