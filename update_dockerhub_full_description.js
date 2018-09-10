@@ -12,7 +12,6 @@ const allImages = [
   'gocd-agent-centos-7',
   'gocd-agent-debian-8',
   'gocd-agent-debian-9',
-  'gocd-agent-ubuntu-12.04',
   'gocd-agent-ubuntu-14.04',
   'gocd-agent-ubuntu-16.04',
   'gocd-agent-ubuntu-18.04'
