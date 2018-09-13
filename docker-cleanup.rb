@@ -16,7 +16,7 @@ response = RestClient.get("https://hub.docker.com/v2/repositories/#{org}/?page_s
 all_repos = JSON.parse(response)
 
 agents = all_repos['results'].map do |repo|
-  repo['name'] if (repo['name'].start_with?('gocd-agent-') && repo['name'] != 'gocd-agent-deprecated') || repo['name'] == 'gocd-server'
+  repo['name'] if (repo['name'].start_with?('gocd-agent-') && repo['name'] != 'gocd-agent-deprecated') || repo['name'].start_with?('gocd-server')
 end
 
 agents.compact.each do |repo|
