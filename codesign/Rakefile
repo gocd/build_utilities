@@ -1,0 +1,12 @@
+require 'open-uri'
+require 'json'
+require 'base64'
+require 'pathname'
+require 'digest'
+
+
+load './lib/tasks/sign-binaries.rake'
+load './lib/tasks/metadata/generate-metadata.rake'
+load './lib/tasks/metadata/upload-binaries.rake'
+
+task :default => ["sign:test"]

@@ -98,7 +98,7 @@ class MacOSX
                      'go-agent'
                    else
                      'go-server'
-              end
+                   end
 
     tmp_dir = "target/tmp/#{tmp_dir_name}"
 
