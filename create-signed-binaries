@@ -205,7 +205,7 @@ end
 
 oses = {
   osx:     { regex: /go-(server|agent).*\-osx.zip$/,  signer: MacOSX , installer_count: 2},
-  win:     { regex: /go-(server|agent).*\.exe$/,      signer: Windows , installer_count: 2 },
+  win:     { regex: /go-(server|agent).*\.exe$/,      signer: Windows , installer_count: 4 },
   rpm:     { regex: /go-(server|agent).*\.rpm$/,      signer: Redhat , installer_count: 2 },
   deb:     { regex: /go-(server|agent).*\.deb$/,      signer: Debian , installer_count: 2 },
   generic: { regex: /go-(server|agent).*[0-9]\.zip$/, signer: Generic  , installer_count: 2},
@@ -284,6 +284,7 @@ task 'metadata' do
     os_signed_files.each do |each_file|
       file_contents = File.read(each_file)
       component = each_file =~ /go-server/ ? 'server' : 'agent'
+      component = component + "32bit" if(each_file =~ /32bit/)
       checksums = {
         md5sum:    Digest::MD5.hexdigest(file_contents),
         sha1sum:   Digest::SHA1.hexdigest(file_contents),
