@@ -96,7 +96,7 @@ def upload_to_s3(s3_bucket, s3_client)
                        })
 end
 
-def docker_agents(dockerhub_username, dockerhub_password, org)
+def docker_agents(dockerhub_username, dockerhub_password, org, version)
   login = RestClient.post('https://hub.docker.com/v2/users/login/', {username: dockerhub_username, password: dockerhub_password}.to_json, {:accept => 'application/json', :content_type => 'application/json'})
   token = JSON.parse(login)['token']
 
@@ -104,7 +104,9 @@ def docker_agents(dockerhub_username, dockerhub_password, org)
   all_repos = JSON.parse(response)
 
   agents = all_repos['results'].map do |repo|
-    {image_name: repo['name']} if (repo['name'].start_with?('gocd-agent-') && repo['name'] != 'gocd-agent-deprecated')
+    tags_response = RestClient.get("https://hub.docker.com/v2/repositories/#{org}/#{repo['name']}/tags", {:accept => 'application/json', :Authorization => "JWT #{token}"})
+    all_tags = JSON.parse(tags_response)['results'].map { |tag| tag['name']}
+    {image_name: repo['name']} if (repo['name'].start_with?('gocd-agent-') && repo['name'] != 'gocd-agent-deprecated' && all_tags.include?("v#{version}"))
   end
   agents.compact
 end
@@ -118,7 +120,7 @@ task :default do
     'server_amis'           => server_amis(version),
     'demo_amis'             => demo_ami(version),
     'server_docker'         => [{'image_name' => 'gocd-server'}],
-    'agents_docker'         => docker_agents(dockerhub_username, dockerhub_password, org)
+    'agents_docker'         => docker_agents(dockerhub_username, dockerhub_password, org, version)
   }
 
   s3_client = Aws::S3::Client.new(region: 'us-east-1', credentials: Aws::Credentials.new(s3_access_key_id, s3_secret_access_key))
