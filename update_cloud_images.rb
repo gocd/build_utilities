@@ -111,7 +111,7 @@ def docker_agents(dockerhub_username, dockerhub_password, org, version)
     all_tags = JSON.parse(tags_response)['results'].map { |tag| tag['name']}
     {image_name: repo['name']} if (repo['name'].start_with?('gocd-agent-') && repo['name'] != 'gocd-agent-deprecated' && all_tags.include?("v#{version}"))
   end
-  agents.compact
+  agents.compact.sort_by { |agent| agent[:image_name] }
 end
 
 task :default do
