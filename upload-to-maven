@@ -79,9 +79,9 @@ end
 
 task :prepare_for_upload do
   {
-    "target/go-plugin-api/go-plugin-api-#{go_full_version}.jar"         => "target/go-plugin-api/go-plugin-api#{artifact_suffix}-#{maven_release_version}.jar",
-    "target/go-plugin-api/go-plugin-api-#{go_full_version}-javadoc.jar" => "target/go-plugin-api/go-plugin-api#{artifact_suffix}-#{maven_release_version}-javadoc.jar",
-    "target/go-plugin-api/go-plugin-api-#{go_full_version}-sources.jar" => "target/go-plugin-api/go-plugin-api#{artifact_suffix}-#{maven_release_version}-sources.jar"
+    "target/go-plugin-api/go-plugin-api-#{go_full_version}.jar"                         => "target/go-plugin-api/go-plugin-api#{artifact_suffix}-#{maven_release_version}.jar",
+    "target/go-plugin-api/go-plugin-api-#{go_full_version}-javadoc.jar"                 => "target/go-plugin-api/go-plugin-api#{artifact_suffix}-#{maven_release_version}-javadoc.jar",
+    "target/go-plugin-api/go-plugin-api-#{go_full_version}-sources.jar"                 => "target/go-plugin-api/go-plugin-api#{artifact_suffix}-#{maven_release_version}-sources.jar",
     "target/go-plugin-config-repo/go-plugin-config-repo-#{go_full_version}.jar"         => "target/go-plugin-config-repo/go-plugin-config-repo#{artifact_suffix}-#{maven_release_version}.jar",
     "target/go-plugin-config-repo/go-plugin-config-repo-#{go_full_version}-javadoc.jar" => "target/go-plugin-config-repo/go-plugin-config-repo#{artifact_suffix}-#{maven_release_version}-javadoc.jar",
     "target/go-plugin-config-repo/go-plugin-config-repo-#{go_full_version}-sources.jar" => "target/go-plugin-config-repo/go-plugin-config-repo#{artifact_suffix}-#{maven_release_version}-sources.jar"
