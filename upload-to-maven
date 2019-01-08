@@ -94,10 +94,14 @@ end
 
 task :upload do
   pom_content = File.read('deploy-pom.xml').gsub('${goReleaseVersion}', maven_release_version).gsub('${artifactSuffix}', artifact_suffix)
-  File.open('target/go-plugin-api/pom.xml', 'w') { |f| f.puts pom_content }
 
-  cd 'target/go-plugin-api' do
-    sh("mvn -DautoReleaseToCentral=#{ENV['AUTO_RELEASE_TO_CENTRAL'] || 'false'} --batch-mode deploy")
+  [ 'go-plugin-api', 'go-plugin-config-repo' ].each do |artifact_name|
+    File.open("target/#{artifact_name}/pom.xml", 'w') { |f| f.puts pom_content }
+
+    cd "target/#{artifact_name}" do
+      sh("mvn -DautoReleaseToCentral=#{ENV['AUTO_RELEASE_TO_CENTRAL'] || 'false'} --batch-mode deploy")
+    end
+
   end
 end
 
