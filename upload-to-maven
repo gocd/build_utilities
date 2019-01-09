@@ -47,14 +47,14 @@ end
 
 task :fetch do
   job_identifier = ENV['INSTALLER_JOB_IDENTIFIER'] || (fail 'INSTALLER_JOB_IDENTIFIER not set. Example: build-linux/645/go-sdk/2/go-plugin-api')
-  url = "https://build.gocd.org/go/files/#{job_identifier}/go-plugin-api.zip"
+  url = "https://build.gocd.org/go/files/#{job_identifier}"
   username = ENV['ARTIFACT_FETCH_USERNAME'] || 'view'
   password = ENV['ARTIFACT_FETCH_PASSWORD'] || 'password'
 
   cd 'target' do
     Timeout.timeout(60) do
       loop do
-        sh("curl --silent --fail --user #{username}:#{password} -D curl-headers.txt #{url} -o go-plugin-api.zip")
+        sh("curl --silent --fail --user #{username}:#{password} -D curl-headers.txt #{url}/go-plugin-api.zip -o go-plugin-api.zip")
         if File.read('curl-headers.txt') =~ /HTTP\/1\.1 200 OK/
           rm_f 'curl-headers.txt'
           break
@@ -62,7 +62,7 @@ task :fetch do
         sleep 1
       end
       loop do
-        sh("curl --silent --fail --user #{username}:#{password} -D curl-headers.txt #{url} -o go-plugin-config-repo.zip")
+        sh("curl --silent --fail --user #{username}:#{password} -D curl-headers.txt #{url}/go-plugin-config-repo.zip -o go-plugin-config-repo.zip")
         if File.read('curl-headers.txt') =~ /HTTP\/1\.1 200 OK/
           rm_f 'curl-headers.txt'
           break
