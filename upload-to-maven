@@ -37,6 +37,22 @@ def maven_release_version
   experimental? ? go_full_version : go_version
 end
 
+def description_for(artifact)
+  if artifact == "go-plugin-api"
+    "The APIs described here are needed for developing plugins for GoCD - A continuous delivery server"
+  elsif artifact == "go-plugin-config-repo"
+    "The APIs described here are needed for developing pipeline as code plugins for GoCD - A continuous delivery server"
+  end
+end
+
+def name_for(artifact)
+  if artifact == "go-plugin-api"
+    "API for plugins of GoCD"
+  elsif artifact == "go-plugin-config-repo"
+    "Contract for pipeline as code plugins of GoCD"
+  end
+end
+
 task :clean do
   rm_rf 'target'
 end
@@ -93,9 +109,13 @@ task :prepare_for_upload do
 end
 
 task :upload do
-  pom_content = File.read('deploy-pom.xml').gsub('${goReleaseVersion}', maven_release_version).gsub('${artifactSuffix}', artifact_suffix)
-
   [ 'go-plugin-api', 'go-plugin-config-repo' ].each do |artifact_name|
+    pom_content = File.read('deploy-pom.xml')
+      .gsub('${goReleaseVersion}', maven_release_version)
+      .gsub('${artifact}', "#{artifact_name}#{artifact_suffix}")
+      .gsub('${desc}', description_for(artifact_name))
+      .gsub('${name}', name_for(artifact_name))
+
     File.open("target/#{artifact_name}/pom.xml", 'w') { |f| f.puts pom_content }
 
     cd "target/#{artifact_name}" do
