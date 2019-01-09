@@ -37,6 +37,22 @@ def maven_release_version
   experimental? ? go_full_version : go_version
 end
 
+def description_for(artifact)
+  if artifact == "go-plugin-api"
+    "The APIs described here are needed for developing plugins for GoCD - A continuous delivery server"
+  elsif artifact == "go-plugin-config-repo"
+    "The APIs described here are needed for developing pipeline as code plugins for GoCD - A continuous delivery server"
+  end
+end
+
+def name_for(artifact)
+  if artifact == "go-plugin-api"
+    "API for plugins of GoCD"
+  elsif artifact == "go-plugin-config-repo"
+    "Contract for pipeline as code plugins of GoCD"
+  end
+end
+
 task :clean do
   rm_rf 'target'
 end
@@ -47,14 +63,22 @@ end
 
 task :fetch do
   job_identifier = ENV['INSTALLER_JOB_IDENTIFIER'] || (fail 'INSTALLER_JOB_IDENTIFIER not set. Example: build-linux/645/go-sdk/2/go-plugin-api')
-  url = "https://build.gocd.org/go/files/#{job_identifier}/go-plugin-api.zip"
+  url = "https://build.gocd.org/go/files/#{job_identifier}"
   username = ENV['ARTIFACT_FETCH_USERNAME'] || 'view'
   password = ENV['ARTIFACT_FETCH_PASSWORD'] || 'password'
 
   cd 'target' do
     Timeout.timeout(60) do
       loop do
-        sh("curl --silent --fail --user #{username}:#{password} -D curl-headers.txt #{url} -o go-plugin-api.zip")
+        sh("curl --silent --fail --user #{username}:#{password} -D curl-headers.txt #{url}/go-plugin-api.zip -o go-plugin-api.zip")
+        if File.read('curl-headers.txt') =~ /HTTP\/1\.1 200 OK/
+          rm_f 'curl-headers.txt'
+          break
+        end
+        sleep 1
+      end
+      loop do
+        sh("curl --silent --fail --user #{username}:#{password} -D curl-headers.txt #{url}/go-plugin-config-repo.zip -o go-plugin-config-repo.zip")
         if File.read('curl-headers.txt') =~ /HTTP\/1\.1 200 OK/
           rm_f 'curl-headers.txt'
           break
@@ -64,28 +88,40 @@ task :fetch do
     end
 
     sh('unzip go-plugin-api.zip')
+    sh('unzip go-plugin-config-repo.zip')
     sh("curl --silent --fail --user #{username}:#{password} https://build.gocd.org/go/files/#{job_identifier}/dist/meta/version.json -o version.json")
   end
 end
 
 task :prepare_for_upload do
   {
-    "go-plugin-api-#{go_full_version}.jar"         => "go-plugin-api#{artifact_suffix}-#{maven_release_version}.jar",
-    "go-plugin-api-#{go_full_version}-javadoc.jar" => "go-plugin-api#{artifact_suffix}-#{maven_release_version}-javadoc.jar",
-    "go-plugin-api-#{go_full_version}-sources.jar" => "go-plugin-api#{artifact_suffix}-#{maven_release_version}-sources.jar"
+    "target/go-plugin-api/go-plugin-api-#{go_full_version}.jar"                         => "target/go-plugin-api/go-plugin-api#{artifact_suffix}-#{maven_release_version}.jar",
+    "target/go-plugin-api/go-plugin-api-#{go_full_version}-javadoc.jar"                 => "target/go-plugin-api/go-plugin-api#{artifact_suffix}-#{maven_release_version}-javadoc.jar",
+    "target/go-plugin-api/go-plugin-api-#{go_full_version}-sources.jar"                 => "target/go-plugin-api/go-plugin-api#{artifact_suffix}-#{maven_release_version}-sources.jar",
+    "target/go-plugin-config-repo/go-plugin-config-repo-#{go_full_version}.jar"         => "target/go-plugin-config-repo/go-plugin-config-repo#{artifact_suffix}-#{maven_release_version}.jar",
+    "target/go-plugin-config-repo/go-plugin-config-repo-#{go_full_version}-javadoc.jar" => "target/go-plugin-config-repo/go-plugin-config-repo#{artifact_suffix}-#{maven_release_version}-javadoc.jar",
+    "target/go-plugin-config-repo/go-plugin-config-repo-#{go_full_version}-sources.jar" => "target/go-plugin-config-repo/go-plugin-config-repo#{artifact_suffix}-#{maven_release_version}-sources.jar"
   }.each do |original_name, new_name|
     if original_name != new_name
-      cp "target/go-plugin-api/#{original_name}", "target/go-plugin-api/#{new_name}"
+      cp original_name, new_name
     end
   end
 end
 
 task :upload do
-  pom_content = File.read('deploy-pom.xml').gsub('${goReleaseVersion}', maven_release_version).gsub('${artifactSuffix}', artifact_suffix)
-  File.open('target/go-plugin-api/pom.xml', 'w') { |f| f.puts pom_content }
+  [ 'go-plugin-api', 'go-plugin-config-repo' ].each do |artifact_name|
+    pom_content = File.read('deploy-pom.xml')
+      .gsub('${goReleaseVersion}', maven_release_version)
+      .gsub('${artifact}', "#{artifact_name}#{artifact_suffix}")
+      .gsub('${desc}', description_for(artifact_name))
+      .gsub('${name}', name_for(artifact_name))
 
-  cd 'target/go-plugin-api' do
-    sh("mvn -DautoReleaseToCentral=#{ENV['AUTO_RELEASE_TO_CENTRAL'] || 'false'} --batch-mode deploy")
+    File.open("target/#{artifact_name}/pom.xml", 'w') { |f| f.puts pom_content }
+
+    cd "target/#{artifact_name}" do
+      sh("mvn -DautoReleaseToCentral=#{ENV['AUTO_RELEASE_TO_CENTRAL'] || 'false'} --batch-mode deploy")
+    end
+
   end
 end
 
