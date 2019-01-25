@@ -12,3 +12,4 @@ release_notes.html
 *.swp
 vendor
 node_modules
+.idea
