@@ -35,9 +35,11 @@ const getBuildGoCDDataSharingInformation = (data) => {
 
   console.log("Fetching data sharing server id information from build.gocd.org...");
   return new Promise((fulfil, reject) => request(requestConfig, (err, res) => {
-    if (err) {
-      return reject(err);
+    if (err || res.statusCode >= 400) {
+      const msg = err ? err : res.body;
+      return reject(msg);
     }
+
     data.gocd_data_sharing_info = JSON.parse(res.body);
     fulfil(data);
   }));
@@ -56,9 +58,11 @@ const getBuildGoCDVersion = (data) => {
 
   console.log("Fetching currently deployed build.gocd.org version information...");
   return new Promise((fulfil, reject) => request(requestConfig, (err, res) => {
-    if (err) {
-      return reject(err);
+    if (err || res.statusCode >= 400) {
+      const msg = err ? err : res.body;
+      return reject(msg);
     }
+
     data.gocd_version = JSON.parse(res.body);
     fulfil(data);
   }));
@@ -92,9 +96,7 @@ const getUsageDataInformationFromDB = (data) => {
 const isToday = function (otherDay) {
   const TODAY = new Date();
 
-  return ((TODAY.getUTCDate() === otherDay.getUTCDate()) &&
-    (TODAY.getUTCMonth() === otherDay.getUTCMonth()) &&
-    (TODAY.getUTCFullYear() === otherDay.getUTCFullYear()));
+  return otherDay.toDateString() === TODAY.toDateString();
 };
 
 const assertUsageDataExists = function (data) {
