@@ -6,6 +6,7 @@ const allImages = [
   'gocd-agent-alpine-3.6',
   'gocd-agent-alpine-3.7',
   'gocd-agent-alpine-3.8',
+  'gocd-agent-alpine-3.9',
   'gocd-agent-docker-dind',
   'gocd-agent-centos-6',
   'gocd-agent-centos-7',
