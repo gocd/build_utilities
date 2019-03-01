@@ -133,13 +133,19 @@ const requestConfig = {
   }
 };
 
-request(requestConfig, (err, res) => {
-  if (err) {
-    return reject(err);
-  }
+function sleep (time) {
+  return new Promise((resolve) => setTimeout(resolve, time));
+};
 
-  console.log('Done creating pull request..');
-  console.log(`Visit: ${res.body.html_url} to see your pull request.`);
+//sleep for 5 secs wait for the code to be pushed and then raise a pull request
+sleep(5000).then(() => {
+  request(requestConfig, (err, res) => {
+    if (err) {
+      return reject(err);
+    }
+    console.log('Done creating pull request..');
+    console.log(`Visit: ${res.body.html_url} to see your pull request.`);
+  });
 });
 
 //--- private method
