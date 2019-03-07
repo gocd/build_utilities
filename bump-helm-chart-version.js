@@ -58,7 +58,8 @@ console.log(`Done updating appVersion.`);
 const versionString     = chartYamlContent.match('version: [0-9].[0-9].[0-9]')[0];
 const currentAppVersion = versionString.split(':')[1].trim();
 const splitAppVersions  = currentAppVersion.split('.');
-splitAppVersions[2]     = (+splitAppVersions[2]) + 1;
+splitAppVersions[1]     = (+splitAppVersions[1]) + 1;
+splitAppVersions[2]     = 0;
 const newAppVersion     = splitAppVersions.join('.');
 
 console.log(`Updating Chart version from '${currentAppVersion}' to '${newAppVersion}' in Chart.yaml...`);
@@ -144,6 +145,7 @@ sleep(5000).then(() => {
       return reject(err);
     }
     console.log('Done creating pull request..');
+    console.log(res.body);
     console.log(`Visit: ${res.body.html_url} to see your pull request.`);
   });
 });
