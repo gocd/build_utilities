@@ -122,7 +122,7 @@ const requestConfig = {
   },
   body:     {
     title:                 `[stable/gocd] ${commitMessage}`,
-    head:                  `${GIT_USERNAME}:${branchName}`,
+    head:                  `gocd:${branchName}`,
     base:                  `master`,
     maintainer_can_modify: true
   },
