@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'aws-sdk'
+require 'aws-sdk-s3'
 
 s3_client = Aws::S3::Client.new(region: 'us-east-1')
 last_key = nil

@@ -14,7 +14,7 @@ end
 $stdout.sync = true
 $stderr.sync = true
 
-require 'aws-sdk'
+require 'aws-sdk-s3'
 require 'json'
 require 'rest-client'
 
