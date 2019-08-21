@@ -83,9 +83,7 @@ const latestCommitShortSHA = childProcess.execSync(`git rev-parse --short HEAD`,
 
 const changelog = `### ${newAppVersion}
 
-* [${latestCommitShortSHA}](https://github.com/kubernetes/charts/commit/${latestCommitShortSHA}):
-
-- ${commitMessage}
+* [${latestCommitShortSHA}](https://github.com/kubernetes/charts/commit/${latestCommitShortSHA}): ${commitMessage}
 
 `;
 
