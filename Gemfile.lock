@@ -21,7 +21,7 @@ GEM
       unf (>= 0.0.5, < 1.0.0)
     http-cookie (1.0.3)
       domain_name (~> 0.5)
-    jmespath (1.4.0)
+    jmespath (1.6.1)
     json (2.3.0)
     kramdown (2.3.1)
       rexml
