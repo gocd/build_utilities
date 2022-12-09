@@ -16,6 +16,6 @@
     "docker-hub-api": "^0.5.1",
     "github-base": "^0.5.4",
     "pg": "^7.6.1",
-    "request": "^2.85.0"
+    "request": "^2.88.2"
   }
 }
